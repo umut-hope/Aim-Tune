@@ -1,0 +1,32 @@
+{
+  "name": "aimtune",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Browser-based mouse sensitivity finder",
+  "license": "MIT",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "check": "svelte-check --tsconfig ./tsconfig.app.json && tsc -p tsconfig.node.json",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.3.1",
+    "@tsconfig/svelte": "^5.0.8",
+    "@types/node": "^24.19.2",
+    "@types/three": "^0.186.0",
+    "svelte": "^5.57.2",
+    "svelte-check": "^4.7.7",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
+  },
+  "dependencies": {
+    "three": "^0.186.1",
+    "yawmatch": "github:umut-hope/Yaw-Match",
+    "zod": "^4.6.7"
+  }
+}
