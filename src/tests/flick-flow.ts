@@ -84,7 +84,7 @@ export function createFlickFlow(config: Partial<FlickFlowConfig> = {}): FlickFlo
     targets: config.targets ?? {},
     home: config.home ?? [0, 0, -1],
     homeTolerance: config.homeTolerance ?? 2,
-    spawnDelayMs: config.spawnDelayMs ?? [250, 650],
+    spawnDelayMs: config.spawnDelayMs ?? [400, 1000],
     rng: config.rng ?? Math.random,
   }
   const [lo, hi] = resolved.spawnDelayMs
