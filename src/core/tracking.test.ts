@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { TARGET_ANGULAR_RADIUS_DEG, angleBetween, directionFromYawPitch } from './angles'
 import { seededRng } from './testing/simulated-player'
 import {
+  DEFAULT_TRACKING,
   pathAt,
   pathDirection,
   pathSpeed,
@@ -52,8 +53,19 @@ describe('randomPath', () => {
     }
   })
 
+  it('speeds up from rest instead of darting off', () => {
+    const p = randomPath(seededRng(3), view, { rampSec: 0.4 })
+    expect(pathSpeed(p, 0)).toBeCloseTo(0, 9)
+    const full = randomPath(seededRng(3), view, { rampSec: 0 })
+    // Halfway through the ramp the speed is about half of what it would be.
+    expect(pathSpeed(p, 0.2)).toBeLessThan(pathSpeed(full, 0.1) * 0.7 + 1e-9)
+    // After the ramp the path continues at full speed.
+    expect(pathSpeed(p, 1.2)).toBeCloseTo(pathSpeed(full, 1.0), 6)
+  })
+
   it('rejects bad options', () => {
     expect(() => randomPath(seededRng(1), view, { speed: 0 })).toThrow(RangeError)
+    expect(() => randomPath(seededRng(1), view, { rampSec: -1 })).toThrow(RangeError)
   })
 })
 
@@ -102,7 +114,10 @@ const sample = (total: number, along: number, dtMs = 10, speed = 30): TrackSampl
 
 describe('summarizeTrial', () => {
   it('scores time on target and weights by frame time', () => {
-    const t = summarizeTrial([sample(0, 0, 300), sample(TARGET_ANGULAR_RADIUS_DEG * 4, 0, 100)])
+    const t = summarizeTrial([sample(0, 0, 300), sample(TARGET_ANGULAR_RADIUS_DEG * 4, 0, 100)], {
+      ...DEFAULT_TRACKING,
+      settleMs: 0,
+    })
     expect(t.durationMs).toBe(400)
     expect(t.onTarget).toBeCloseTo(0.75, 9)
     expect(t.score).toBeGreaterThan(0.75)
@@ -117,6 +132,18 @@ describe('summarizeTrial', () => {
     expect(ahead.valid).toBe(true)
     const behind = summarizeTrial(Array.from({ length: 200 }, () => sample(1.2, -1.2)))
     expect(behind.bias).toBeCloseTo(-0.2, 9)
+  })
+
+  it('leaves the start of a run out of the score', () => {
+    // 500 ms far behind (reacting), then 1.5 s right on the target.
+    const samples = [
+      ...Array.from({ length: 50 }, () => sample(8, -8)),
+      ...Array.from({ length: 150 }, () => sample(0.2, 0)),
+    ]
+    const t = summarizeTrial(samples)
+    expect(t.durationMs).toBe(1500)
+    expect(t.meanAlong).toBeCloseTo(0, 9)
+    expect(summarizeTrial(samples, { ...DEFAULT_TRACKING, settleMs: 0 }).meanAlong).toBeLessThan(-1.5)
   })
 
   it('marks a trial where the player was not tracking as invalid', () => {

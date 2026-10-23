@@ -1,19 +1,18 @@
 /**
- * Tracking search against simulated trackers. In this model the best tracking
- * distance is about 2.5% shorter than the player's flick preference (a little
- * extra speed makes up for reaction lag), found by scanning expected scores
- * with many trials. Thresholds come from 100-seed runs with headroom.
+ * Tracking search against simulated trackers with a realistic 250 ms reaction
+ * time. The expected answer is each tracker's best-scoring distance, found by
+ * scanning with many runs. Tracking separates distances weakly, so the ranges
+ * are wide and the thresholds loose; they come from 80-seed runs with headroom.
  */
 import { describe, expect, it } from 'vitest'
 import { createSearch, nextBlock, searchResult, submitSummary, type SearchResult } from './search'
-import { makeTracker, simulateTrial, type TrackerProfile } from './testing/simulated-tracker'
+import { makeTracker, simulateTrial, trackingOptimum, type TrackerProfile } from './testing/simulated-tracker'
 import { seededRng } from './testing/simulated-player'
 import { TRACKING_SEARCH, summarizeTrackingBlock, summarizeTrial } from './tracking'
 import { resolveView } from './view'
 
 const view = resolveView({ gameFov: { default: 90, type: 'horizontal-4:3', adjustable: false }, aspect: 16 / 9 })
 const SEEDS = 50
-const OPTIMUM_SHARE = 0.975
 
 function run(player: TrackerProfile, seed: number): SearchResult {
   const rng = seededRng(seed)
@@ -26,7 +25,7 @@ function run(player: TrackerProfile, seed: number): SearchResult {
 }
 
 function evaluate(player: TrackerProfile) {
-  const best = player.preferredCm360 * OPTIMUM_SHARE
+  const best = trackingOptimum(player, view)
   const errors: number[] = []
   let covered = 0
   for (let seed = 1; seed <= SEEDS; seed++) {
@@ -42,12 +41,12 @@ describe('tracking search with simulated trackers', () => {
   it.each([25, 52])('finds an average tracker who prefers %i cm/360', (preferred) => {
     const s = evaluate(makeTracker(preferred))
     expect(s.median).toBeLessThan(0.1)
-    expect(s.coverage).toBeGreaterThan(0.75)
+    expect(s.coverage).toBeGreaterThan(0.7)
   })
 
   it('covers a noisy tracker with a wider range', () => {
     const s = evaluate(makeTracker(38, { speedNoise: 0.25, tremorCm: 1.2 }))
     expect(s.median).toBeLessThan(0.12)
-    expect(s.coverage).toBeGreaterThan(0.75)
+    expect(s.coverage).toBeGreaterThan(0.7)
   })
 }, 120000)

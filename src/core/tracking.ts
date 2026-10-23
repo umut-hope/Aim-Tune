@@ -28,6 +28,11 @@ import { horizontalFromVertical, type View } from './view'
 export interface TrackPath {
   yaw: readonly [Wave, Wave]
   pitch: Wave
+  /**
+   * Seconds over which the target speeds up from rest, so a run does not open
+   * with the target darting away before anyone can react. 0 = full speed at once.
+   */
+  rampSec?: number
 }
 
 interface Wave {
@@ -40,11 +45,13 @@ interface Wave {
 export interface PathOptions {
   /** Typical angular speed of the target, degrees per second. */
   speed: number
+  /** Ease-in time from rest to full speed, seconds. */
+  rampSec: number
   /** Share of the half-screen the path may use. */
   spread: number
 }
 
-export const DEFAULT_PATH: Readonly<PathOptions> = { speed: 35, spread: 0.7 }
+export const DEFAULT_PATH: Readonly<PathOptions> = { speed: 35, rampSec: 0.4, spread: 0.7 }
 
 /** A wave offset so that it is 0 at t = 0: every path starts on the home direction. */
 const waveAt = (w: Wave, t: number): number => w.amplitude * (Math.sin(w.frequency * t + w.phase) - Math.sin(w.phase))
@@ -52,7 +59,7 @@ const waveRate = (w: Wave, t: number): number => w.amplitude * w.frequency * Mat
 
 export function randomPath(rng: () => number, view: View, options: Partial<PathOptions> = {}): TrackPath {
   const o = { ...DEFAULT_PATH, ...options }
-  if (!(o.speed > 0 && o.spread > 0 && o.spread <= 1)) throw new RangeError('invalid path options')
+  if (!(o.speed > 0 && o.spread > 0 && o.spread <= 1 && o.rampSec >= 0)) throw new RangeError('invalid path options')
   // Offsets from waveAt reach at most twice the amplitude, so halve the limits.
   const yawLimit = ((horizontalFromVertical(view.verticalFov, view.aspect) / 2) * o.spread) / 2
   const pitchLimit = ((view.verticalFov / 2) * o.spread) / 2
@@ -66,12 +73,31 @@ export function randomPath(rng: () => number, view: View, options: Partial<PathO
       { amplitude: a2, frequency: f1 * 1.7, phase: rng() * Math.PI * 2 },
     ],
     pitch: { amplitude: pitchLimit * 0.5, frequency: f1 * 0.8, phase: rng() * Math.PI * 2 },
+    rampSec: o.rampSec,
   }
+}
+
+/**
+ * The path's own clock: during the ramp it runs slower, so the target's speed
+ * grows linearly from 0 to full. Afterwards it runs at the normal rate.
+ */
+function pathTime(path: TrackPath, t: number): number {
+  const r = path.rampSec ?? 0
+  if (r <= 0 || t <= 0) return t
+  return t < r ? (t * t) / (2 * r) : t - r / 2
+}
+
+/** How fast the path's clock runs at real time `t` (0..1). */
+function pathRate(path: TrackPath, t: number): number {
+  const r = path.rampSec ?? 0
+  if (r <= 0 || t >= r) return 1
+  return Math.max(0, t / r)
 }
 
 /** Target position at time `t` (seconds), as yaw/pitch offsets from home (degrees). */
 export function pathAt(path: TrackPath, t: number): { yaw: number; pitch: number } {
-  return { yaw: waveAt(path.yaw[0], t) + waveAt(path.yaw[1], t), pitch: waveAt(path.pitch, t) }
+  const u = pathTime(path, t)
+  return { yaw: waveAt(path.yaw[0], u) + waveAt(path.yaw[1], u), pitch: waveAt(path.pitch, u) }
 }
 
 export function pathDirection(path: TrackPath, t: number): Vec3 {
@@ -82,8 +108,10 @@ export function pathDirection(path: TrackPath, t: number): Vec3 {
 /** Angular speed of the target at time `t`, degrees per second. */
 export function pathSpeed(path: TrackPath, t: number): number {
   const p = pathAt(path, t)
-  const yawRate = (waveRate(path.yaw[0], t) + waveRate(path.yaw[1], t)) * Math.cos((p.pitch * Math.PI) / 180)
-  return Math.hypot(yawRate, waveRate(path.pitch, t))
+  const u = pathTime(path, t)
+  const k = pathRate(path, t)
+  const yawRate = (waveRate(path.yaw[0], u) + waveRate(path.yaw[1], u)) * Math.cos((p.pitch * Math.PI) / 180)
+  return k * Math.hypot(yawRate, waveRate(path.pitch, u))
 }
 
 export interface TrackingError {
@@ -137,8 +165,13 @@ export interface TrackingScoring {
   reactionMs: number
   /** Trials with a larger mean error are treated as not tracking at all. */
   maxMeanError: number
-  /** Trials shorter than this (paused, cut off) are ignored. */
+  /** Trials shorter than this (paused, cut off) are ignored. Counts scored time only. */
   minDurationMs: number
+  /**
+   * Start of each run left out of the score, ms. The first moments mostly
+   * measure reaction time (the target moves before the hand does), not sens.
+   */
+  settleMs: number
 }
 
 export const DEFAULT_TRACKING: Readonly<TrackingScoring> = {
@@ -146,6 +179,7 @@ export const DEFAULT_TRACKING: Readonly<TrackingScoring> = {
   reactionMs: 200,
   maxMeanError: 15,
   minDurationMs: 1000,
+  settleMs: 500,
 }
 
 export interface TrialSummary {
@@ -171,8 +205,11 @@ export function summarizeTrial(samples: readonly TrackSample[], options: Trackin
   let along = 0
   let across = 0
   let speed = 0
+  let elapsed = 0
   for (const s of samples) {
     if (!(s.dtMs > 0)) continue
+    elapsed += s.dtMs
+    if (elapsed <= options.settleMs) continue
     const r = s.error.total / options.errorScale
     duration += s.dtMs
     score += s.dtMs / (1 + r * r)
@@ -219,8 +256,8 @@ export function summarizeTrackingBlock(trials: readonly TrialSummary[]): BlockSu
   }
 }
 
-/** Length of one tracking trial, ms. */
-export const TRIAL_MS = 3000
+/** Length of one tracking run, ms (the first DEFAULT_TRACKING.settleMs are not scored). */
+export const TRIAL_MS = 5000
 
 /**
  * Search settings for tracking, tuned with simulated players. Tracking scores
@@ -231,7 +268,7 @@ export const TRIAL_MS = 3000
  */
 export const TRACKING_SEARCH: Readonly<SearchOptions> = {
   rounds: 4,
-  shotsPerBlock: 5,
+  shotsPerBlock: 3,
   warmupShots: 2,
   tieZ: 1.25,
   biasTieBreak: false,

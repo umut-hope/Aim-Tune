@@ -149,8 +149,14 @@ export function tick(state: TrackingFlowState, now: number, cameraDir: Vec3): Tr
       : state.samples
   if (t * 1000 < state.config.trialMs) return { ...state, samples, lastFrame: now }
 
-  // A trial counts once most of it was played; the threshold follows the trial length.
-  const scoring = { ...DEFAULT_TRACKING, minDurationMs: Math.min(DEFAULT_TRACKING.minDurationMs, state.config.trialMs * 0.8) }
+  // The settle window and minimum length follow the trial length, so short runs still count.
+  const trialMs = state.config.trialMs
+  const settleMs = Math.min(DEFAULT_TRACKING.settleMs, trialMs * 0.2)
+  const scoring = {
+    ...DEFAULT_TRACKING,
+    settleMs,
+    minDurationMs: Math.min(DEFAULT_TRACKING.minDurationMs, (trialMs - settleMs) * 0.8),
+  }
   return finishTrial(state, summarizeTrial(samples, scoring))
 }
 

@@ -9,9 +9,9 @@
  * a slowly varying speed error and a small tremor measured in cm.
  */
 import { directionFromYawPitch } from '../angles'
-import { pathAt, pathSpeed, randomPath, trackingError, type PathOptions, type TrackSample } from '../tracking'
+import { TRIAL_MS, pathAt, pathSpeed, randomPath, summarizeTrackingBlock, summarizeTrial, trackingError, type PathOptions, type TrackSample } from '../tracking'
 import type { View } from '../view'
-import { gaussian } from './simulated-player'
+import { gaussian, seededRng } from './simulated-player'
 
 export interface TrackerProfile {
   preferredCm360: number
@@ -25,7 +25,7 @@ export interface TrackerProfile {
 }
 
 export const AVERAGE_TRACKER: Readonly<Omit<TrackerProfile, 'preferredCm360'>> = {
-  reactionMs: 150,
+  reactionMs: 250,
   correction: 5,
   speedNoise: 0.12,
   tremorCm: 0.6,
@@ -50,7 +50,7 @@ export function simulateTrial(
   testCm360: number,
   view: View,
   rng: () => number,
-  options: TrialOptions = { durationMs: 3000, frameMs: 1000 / 120 },
+  options: TrialOptions = { durationMs: TRIAL_MS, frameMs: 1000 / 120 },
 ): TrackSample[] {
   const path = randomPath(rng, view, options.path)
   const dt = options.frameMs / 1000
@@ -93,4 +93,25 @@ export function simulateTrial(
     })
   }
   return samples
+}
+
+/**
+ * Distance with the best expected tracking score for a player, found by
+ * scanning around their preference with many seeded runs. With a realistic
+ * reaction time it lies a little above the preference: at a fast sens a slow
+ * hand overshoots its corrections.
+ */
+export function trackingOptimum(player: TrackerProfile, view: View, runs = 120): number {
+  let best = Number.NEGATIVE_INFINITY
+  let bestCm = player.preferredCm360
+  for (let f = 0.85; f <= 1.2001; f += 0.025) {
+    const cm = player.preferredCm360 * f
+    const rng = seededRng(77)
+    const score = summarizeTrackingBlock(Array.from({ length: runs }, () => summarizeTrial(simulateTrial(player, cm, view, rng)))).score
+    if (score > best) {
+      best = score
+      bestCm = cm
+    }
+  }
+  return bestCm
 }
