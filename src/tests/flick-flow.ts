@@ -5,13 +5,22 @@
  *
  * Phases:
  *   ready          waiting for the player to start the next block
- *   waiting        short random delay before the next target appears
+ *   waiting        player returns to the home dot; after a short random delay
+ *                  on it, the next target appears
  *   aiming         target visible, waiting for the click
  *   round-summary  both distances of a round tested; show which scored better
  *   paused         Esc pressed; a shot in progress is discarded
  *   done           search finished, `result` is set
  */
-import { flickError, randomTargetSpec, targetDirection, type TargetSpec, type TargetSpecOptions, type Vec3 } from '../core/angles'
+import {
+  angleBetween,
+  flickError,
+  randomTargetSpec,
+  targetDirection,
+  type TargetSpec,
+  type TargetSpecOptions,
+  type Vec3,
+} from '../core/angles'
 import type { Shot } from '../core/scoring'
 import {
   createSearch,
@@ -31,7 +40,14 @@ export type FlickPhase = 'ready' | 'waiting' | 'aiming' | 'round-summary' | 'pau
 export interface FlickFlowConfig {
   search: SearchOptions
   targets: TargetSpecOptions
-  /** Random delay before each target, ms, so the player cannot anticipate it. */
+  /**
+   * Fixed direction the player returns to before every target, so each flick
+   * starts from the same place and every target appears on screen.
+   */
+  home: Vec3
+  /** How close to `home` the crosshair must be, degrees. */
+  homeTolerance: number
+  /** Random delay on the home dot before each target, ms, so it cannot be anticipated. */
   spawnDelayMs: readonly [number, number]
   /** Returns values in [0, 1). Seeded in tests. */
   rng: () => number
@@ -55,6 +71,7 @@ export interface FlickFlowState {
   readonly block: BlockRequest | null
   readonly shots: readonly Shot[]
   readonly target: ActiveTarget | null
+  /** When the next target appears; null until the player is on the home dot. */
   readonly spawnAt: number | null
   /** Most recently finished round, for the between-rounds panel. */
   readonly lastRound: RoundResult | null
@@ -65,11 +82,14 @@ export function createFlickFlow(config: Partial<FlickFlowConfig> = {}): FlickFlo
   const resolved: FlickFlowConfig = {
     search: config.search ?? {},
     targets: config.targets ?? {},
+    home: config.home ?? [0, 0, -1],
+    homeTolerance: config.homeTolerance ?? 2,
     spawnDelayMs: config.spawnDelayMs ?? [250, 650],
     rng: config.rng ?? Math.random,
   }
   const [lo, hi] = resolved.spawnDelayMs
   if (!(lo >= 0 && hi >= lo)) throw new RangeError(`invalid spawn delay ${lo}–${hi}`)
+  if (!(resolved.homeTolerance > 0)) throw new RangeError('homeTolerance must be positive')
 
   const search = createSearch(resolved.search)
   return {
@@ -92,15 +112,28 @@ function spawnDelay(config: FlickFlowConfig): number {
 }
 
 /** Starts the current block, or leaves the round summary. */
-export function proceed(state: FlickFlowState, now: number): FlickFlowState {
+export function proceed(state: FlickFlowState): FlickFlowState {
   if (state.phase === 'round-summary') return { ...state, phase: 'ready' }
   if (state.phase !== 'ready' || !state.block) return state
-  return { ...state, phase: 'waiting', spawnAt: now + spawnDelay(state.config), shots: [] }
+  return { ...state, phase: 'waiting', spawnAt: null, shots: [] }
 }
 
-/** Shows the next target once its delay has passed. `cameraDir` is the current view direction. */
+/** Whether the crosshair is on the home dot. */
+export function isOnHome(state: FlickFlowState, cameraDir: Vec3): boolean {
+  return angleBetween(cameraDir, state.config.home) <= state.config.homeTolerance
+}
+
+/**
+ * Shows the next target once the player has stayed on the home dot for the
+ * spawn delay. Leaving the dot restarts the delay. `cameraDir` is the current
+ * view direction.
+ */
 export function tick(state: FlickFlowState, now: number, cameraDir: Vec3): FlickFlowState {
-  if (state.phase !== 'waiting' || state.spawnAt === null || now < state.spawnAt) return state
+  if (state.phase !== 'waiting') return state
+  if (!isOnHome(state, cameraDir)) return state.spawnAt === null ? state : { ...state, spawnAt: null }
+  if (state.spawnAt === null) return { ...state, spawnAt: now + spawnDelay(state.config) }
+  if (now < state.spawnAt) return state
+
   const spec = randomTargetSpec(state.config.rng, state.config.targets)
   return {
     ...state,
@@ -130,7 +163,7 @@ export function click(state: FlickFlowState, now: number, cameraDir: Vec3): Flic
   const shots = [...state.shots, shot]
 
   if (shots.length < block.shots) {
-    return { ...state, phase: 'waiting', target: null, shots, spawnAt: now + spawnDelay(state.config) }
+    return { ...state, phase: 'waiting', target: null, shots, spawnAt: null }
   }
 
   const search = submitBlock(state.search, shots)
@@ -150,11 +183,11 @@ export function pause(state: FlickFlowState): FlickFlowState {
   return { ...state, phase: 'paused', pausedFrom: state.phase, target: null, spawnAt: null }
 }
 
-export function resume(state: FlickFlowState, now: number): FlickFlowState {
+export function resume(state: FlickFlowState): FlickFlowState {
   if (state.phase !== 'paused' || !state.pausedFrom) return state
   const from = state.pausedFrom
   if (from === 'waiting' || from === 'aiming') {
-    return { ...state, phase: 'waiting', pausedFrom: null, spawnAt: now + spawnDelay(state.config) }
+    return { ...state, phase: 'waiting', pausedFrom: null, spawnAt: null }
   }
   return { ...state, phase: from, pausedFrom: null }
 }

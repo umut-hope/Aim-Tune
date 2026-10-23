@@ -29,17 +29,38 @@ import { SCENE_COLORS } from './palette'
 const EYE_HEIGHT = 1.6
 const ROOM_SIZE = 30
 const ROOM_HEIGHT = 12
-/** Targets float on a sphere around the camera, inside the room. */
+/**
+ * Preferred distance of targets from the camera. Closer when a wall, the floor
+ * or the ceiling is in the way; objects are scaled with distance so their size
+ * on screen never changes.
+ */
 const TARGET_DISTANCE = 10
 /** 0.25 m at 10 m ≈ 1.4° angular radius. */
 const TARGET_RADIUS = 0.25
+/** 0.06 m at 10 m ≈ 0.34° angular radius. */
+const HOME_RADIUS = 0.06
 const MAX_PITCH = 89
+
+/** Distance along `dir` from the eye to the first room surface. */
+export function distanceToRoomSurface(dir: Vec3): number {
+  const origin = [0, EYE_HEIGHT, 0] as const
+  const min = [-ROOM_SIZE / 2, 0, -ROOM_SIZE / 2] as const
+  const max = [ROOM_SIZE / 2, ROOM_HEIGHT, ROOM_SIZE / 2] as const
+  let t = Number.POSITIVE_INFINITY
+  for (let i = 0; i < 3; i++) {
+    const d = dir[i]!
+    if (d > 1e-9) t = Math.min(t, (max[i]! - origin[i]!) / d)
+    else if (d < -1e-9) t = Math.min(t, (min[i]! - origin[i]!) / d)
+  }
+  return t
+}
 
 export class FlickScene {
   private readonly renderer: WebGLRenderer
   private readonly scene = new Scene()
   private readonly camera = new PerspectiveCamera(70, 16 / 9, 0.05, 100)
   private readonly target: Mesh
+  private readonly home: Mesh
   private readonly disposables: { dispose(): void }[] = []
   private view: View = { verticalFov: 70, aspect: 16 / 9 }
   private yaw = 0
@@ -62,6 +83,20 @@ export class FlickScene {
     this.target = new Mesh(targetGeometry, targetMaterial)
     this.target.visible = false
     this.scene.add(this.target)
+
+    const homeGeometry = new SphereGeometry(HOME_RADIUS, 16, 8)
+    const homeMaterial = new MeshBasicMaterial({ color: SCENE_COLORS.text })
+    this.disposables.push(homeGeometry, homeMaterial)
+    this.home = new Mesh(homeGeometry, homeMaterial)
+    this.home.visible = false
+    this.scene.add(this.home)
+  }
+
+  /** Puts a mesh in `direction`, inside the room, at a constant size on screen. */
+  private place(mesh: Mesh, direction: Vec3): void {
+    const distance = Math.min(TARGET_DISTANCE, 0.9 * distanceToRoomSurface(direction))
+    mesh.position.set(direction[0] * distance, EYE_HEIGHT + direction[1] * distance, direction[2] * distance)
+    mesh.scale.setScalar(distance / TARGET_DISTANCE)
   }
 
   private buildRoom(): void {
@@ -135,11 +170,17 @@ export class FlickScene {
       return
     }
     this.target.visible = true
-    this.target.position.set(
-      direction[0] * TARGET_DISTANCE,
-      EYE_HEIGHT + direction[1] * TARGET_DISTANCE,
-      direction[2] * TARGET_DISTANCE,
-    )
+    this.place(this.target, direction)
+  }
+
+  /** Shows the white home dot the player returns to between shots, or hides it. */
+  showHome(direction: Vec3 | null): void {
+    if (!direction) {
+      this.home.visible = false
+      return
+    }
+    this.home.visible = true
+    this.place(this.home, direction)
   }
 
   render(): void {
