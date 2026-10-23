@@ -33,6 +33,13 @@
     fov: "The FOV value in your game's video settings, in the game's own units. Leave empty to use the game's default. Ignored for games where the FOV cannot be changed.",
   }
 
+  interface Props {
+    /** True while a test is in progress (not on the setup form or results). */
+    running?: boolean
+  }
+
+  let { running = $bindable(false) }: Props = $props()
+
   let dpi = $state(800)
   let unit = $state<DistanceUnit>('cm')
   // Empty number inputs bind to undefined.
@@ -62,6 +69,10 @@
   const game = $derived(findGame(games, gameId))
   const info = $derived(flow ? hud(flow) : null)
   const unitLabel = $derived(unit === 'cm' ? 'cm/360' : 'in/360')
+
+  $effect(() => {
+    running = flow !== null && flow.phase !== 'done'
+  })
 
   onMount(() => {
     gamesLoader.load().then((r) => {
@@ -199,7 +210,7 @@
 
   {#if !flow}
     <form class="panel" onsubmit={(e) => { e.preventDefault(); void start() }}>
-      <h1>Flick test (dev)</h1>
+      <h1>Flick test</h1>
 
       <div class="field">
         <div class="field-head">
