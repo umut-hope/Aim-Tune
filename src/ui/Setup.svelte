@@ -271,7 +271,9 @@
           {:else if raw === 'no'}
             No raw input in this browser. Turn off "Enhance pointer precision" (Windows) or mouse acceleration, or results may drift.
           {:else}
-            Could not tell if raw input works. Turning off OS mouse acceleration is safest.
+            This browser cannot confirm raw input (Firefox and Safari ignore the request), so Windows mouse settings may
+            change your results. For the most accurate test use Chrome or Edge, or turn off "Enhance pointer precision"
+            and keep the Windows pointer speed at 6/11.
           {/if}
         </span>
       </li>

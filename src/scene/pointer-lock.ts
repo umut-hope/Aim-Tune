@@ -14,6 +14,16 @@ export interface PointerLockHandlers {
 }
 
 type LockOptions = { unadjustedMovement?: boolean }
+
+/**
+ * Only Chromium-based browsers (Chrome, Edge, Opera) honour unadjustedMovement.
+ * Others (Firefox, Safari) accept the request and silently ignore the option,
+ * so a granted lock there says nothing about raw input.
+ */
+export function supportsUnadjustedMovement(userAgent = typeof navigator === 'undefined' ? '' : navigator.userAgent): boolean {
+  return /\bChrome\/\d+/.test(userAgent) && !/\bFirefox\//.test(userAgent)
+}
+
 type LockableElement = HTMLElement & {
   requestPointerLock(options?: LockOptions): Promise<void> | undefined
 }
@@ -48,7 +58,7 @@ export class PointerLockInput {
         this.raw = 'unknown'
       } else {
         await result
-        this.raw = 'yes'
+        this.raw = supportsUnadjustedMovement() ? 'yes' : 'unknown'
       }
     } catch (e) {
       if (e instanceof DOMException && e.name === 'NotSupportedError') {
@@ -99,7 +109,7 @@ export async function probeRawInput(element: HTMLElement): Promise<RawInput> {
       return 'unknown'
     }
     await result
-    return 'yes'
+    return supportsUnadjustedMovement() ? 'yes' : 'unknown'
   } catch (e) {
     return e instanceof DOMException && e.name === 'NotSupportedError' ? 'no' : 'unknown'
   } finally {
