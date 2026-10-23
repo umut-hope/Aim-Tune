@@ -37,9 +37,10 @@
   <section>
     <h2>Narrowing down</h2>
     <p>
-      After a few unscored warm-up shots, each round tests two distances inside the current range with ten flicks
-      each. The better one keeps its half of the range, and the next round looks closer. Five rounds take the range
-      from about 3× wide to a few percent.
+      After a few unscored warm-up shots, each round tests two distances inside the current range with eight flicks
+      each. The next round centres on the better one and keeps about two thirds of the range, including a bit of the
+      losing side, so one unlucky round can still be undone later. Six rounds take the range from about 3× wide to a few
+      percent.
     </p>
     <p>
       Shots are scored mostly on accuracy relative to the flick size, with speed as a smaller factor. When two
@@ -47,7 +48,7 @@
       undershoot means too low.
     </p>
     <p>
-      The final range is never narrower than ±4%, and it widens if your flicks were inconsistent, so the result does not
+      The final range is never narrower than ±5%, and it widens if your flicks were inconsistent, so the result does not
       look more precise than it is.
     </p>
   </section>
@@ -70,7 +71,7 @@
   <section>
     <h2>The full test</h2>
     <p>
-      You set one sens in game, so the default test does both: a flick part, then a tracking part, about four minutes
+      You set one sens in game, so the default test does both: a flick part, then a tracking part, about four and a half minutes
       in all. Each part finds its own range, and the result is their weighted average. You choose the weights by how your
       game plays: mostly flicks (85% flick, 15% tracking), both (60/40) or mostly tracking (35/65).
     </p>

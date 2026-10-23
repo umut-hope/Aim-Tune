@@ -42,7 +42,7 @@
   }: Props = $props()
 
   const KINDS: { id: TestKind; name: string; desc: string }[] = [
-    { id: 'full', name: 'Full test', desc: 'Flicks + tracking · ~4 min' },
+    { id: 'full', name: 'Full test', desc: 'Flicks + tracking · ~4.5 min' },
     { id: 'flick', name: 'Flick only', desc: 'Snap to targets · ~2.5 min' },
     { id: 'tracking', name: 'Tracking only', desc: 'Follow a target · ~3 min' },
   ]
@@ -113,7 +113,7 @@
 <section class="hero">
   <h1>Find the sens your hand actually likes.</h1>
   <p class="hero-sub">
-    A short flick and tracking test in your browser, about 4 minutes. It measures how you aim and suggests a range,
+    A short flick and tracking test in your browser, about 4.5 minutes. It measures how you aim and suggests a range,
     not a single magic number. You need a mouse.
   </p>
 </section>

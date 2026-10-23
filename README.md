@@ -18,7 +18,7 @@ No install, no account. Open it on a computer with a mouse; the test takes about
 
 You pick your game, sens and DPI, and a test:
 
-- **Full test** (default, about 4 minutes): a flick part, then a tracking part. Each finds its own range and the
+- **Full test** (default, about 4.5 minutes): a flick part, then a tracking part. Each finds its own range and the
   result is their weighted average; you pick the weights by how your game plays (mostly flicks 85/15, both 60/40,
   mostly tracking 35/65).
 - **Flick only:** in a simple 3D room you flick from a white dot to yellow targets and click once per target.
@@ -51,7 +51,10 @@ flicks are not a real match. Treat the result as a starting point.
   factor.
 - When two distances score about the same, systematic overshoot (sens too high) or undershoot (sens too low)
   decides the round.
-- The final range is never narrower than ±4% and widens when your flicks were inconsistent.
+- Each round keeps about two thirds of the range around the better distance (not just half), so one unlucky
+  round can be undone; this was tuned on simulated players with warm-up, form swings and bad blocks, measuring
+  how far apart two runs of the same player land.
+- The final range is never narrower than ±5% and widens when your flicks were inconsistent.
 - Tracking splits the miss into **ahead of** and **behind** the moving target. Reaction time makes everyone
   trail a little and tracking scores change slowly with sens, so tracking rounds are decided by score alone
   and undecided rounds keep the range: tracking results are honestly wider than flick results.
