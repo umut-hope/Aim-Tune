@@ -1,4 +1,7 @@
-/* Base element styles. Colours, fonts and radii come from tokens.css. */
+/*
+ * Base element styles and shared classes, matching yawmatch.
+ * Colours, fonts and radii come from tokens.css.
+ */
 
 *,
 *::before,
@@ -23,4 +26,224 @@ button,
 input,
 select {
   font: inherit;
+}
+
+h1,
+h2,
+h3 {
+  margin: 0;
+  line-height: 1.15;
+  font-weight: var(--weight-black);
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: var(--color-accent);
+}
+a:hover {
+  color: var(--color-accent-hover);
+}
+
+code,
+.num {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.muted {
+  color: var(--color-text-muted);
+}
+.small {
+  font-size: 0.875rem;
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* Page column for normal (non-test) screens */
+.page {
+  max-width: 1160px;
+  margin: 0 auto;
+  padding: 0 16px 3rem;
+}
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  min-height: var(--touch-target);
+  padding: 0 1rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-text);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn:hover {
+  color: var(--color-text);
+  border-color: var(--color-accent);
+}
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+.btn:disabled:hover {
+  border-color: var(--color-border);
+}
+.btn-primary {
+  color: var(--color-on-accent);
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}
+.btn-primary:hover {
+  color: var(--color-on-accent);
+  background: var(--color-accent-hover);
+}
+.btn-primary:disabled:hover {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.btn-large {
+  min-height: 52px;
+  padding: 0 1.5rem;
+  font-size: 1.05rem;
+}
+
+.link-button {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--touch-target);
+  padding: 0 0.25rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-accent);
+  background: none;
+  border: 0;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.link-button:hover {
+  color: var(--color-accent-hover);
+}
+
+/* ---------- Cards and info boxes ---------- */
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+  padding: 1.25rem;
+}
+
+.tip {
+  padding: 1rem 1.1rem;
+  background: var(--color-tip-bg);
+  border: 1px solid var(--color-tip-border);
+  border-radius: var(--radius-card);
+  color: var(--color-tip-text);
+  font-size: 0.925rem;
+}
+.tip-title {
+  margin-bottom: 0.35rem;
+  font-weight: var(--weight-bold);
+  color: var(--color-accent);
+}
+
+/* ---------- Forms ---------- */
+
+.field {
+  display: grid;
+  gap: 0.35rem;
+  min-width: 0;
+}
+.field-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.field-head label {
+  font-size: 0.875rem;
+  font-weight: var(--weight-medium);
+  color: var(--color-text-muted);
+}
+select,
+input {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--touch-target);
+  padding: 0 0.8rem;
+  color: var(--color-text);
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+}
+select {
+  text-overflow: ellipsis;
+}
+select:hover,
+input:hover {
+  border-color: var(--color-text-muted);
+}
+.num-input {
+  font-family: var(--font-mono);
+  font-size: 1.05rem;
+}
+input[aria-invalid='true'] {
+  border-color: var(--color-danger);
+}
+.form-error {
+  color: var(--color-danger);
+  font-size: 0.9rem;
+}
+
+/* Segmented cm / in toggle */
+.units {
+  display: flex;
+  flex: none;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+.units button {
+  min-width: var(--touch-target);
+  min-height: var(--touch-target);
+  padding: 0 10px;
+  border: 0;
+  background: var(--color-bg);
+  color: var(--color-text-muted);
+  font-family: var(--font-mono);
+  cursor: pointer;
+}
+.units button[aria-pressed='true'] {
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-weight: var(--weight-bold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition: none !important;
+  }
 }

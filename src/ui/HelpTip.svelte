@@ -1,7 +1,8 @@
 <!--
   A small "?" button next to a field. Hovering or focusing it (keyboard, tap)
   shows a short explanation. The text is linked with aria-describedby so
-  screen readers announce it too.
+  screen readers announce it too. The tip is placed against the viewport and
+  kept inside it, so it never widens the page on phones.
 -->
 <script lang="ts">
   interface Props {
@@ -12,26 +13,69 @@
 
   let { label, text }: Props = $props()
   const id = `help-${Math.random().toString(36).slice(2, 10)}`
+
+  const GAP = 10
+  const EDGE = 12
+  const MAX_WIDTH = 280
+
+  let trigger: HTMLButtonElement
+  let open = $state(false)
+  let pos = $state({ left: 0, bottom: 0, width: MAX_WIDTH })
+
+  function show() {
+    const r = trigger.getBoundingClientRect()
+    const width = Math.min(MAX_WIDTH, window.innerWidth - EDGE * 2)
+    const left = Math.min(Math.max(EDGE, r.left - EDGE), window.innerWidth - EDGE - width)
+    pos = { left, bottom: window.innerHeight - r.top + GAP, width }
+    open = true
+  }
+
+  function hide() {
+    open = false
+  }
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') hide()
+  }
 </script>
 
-<span class="help">
-  <button type="button" class="trigger" aria-label={`What is ${label}?`} aria-describedby={id}>?</button>
-  <span class="tip" role="tooltip" {id}>{text}</span>
+<svelte:window onscroll={hide} onresize={hide} />
+
+<span
+  class="help"
+  role="presentation"
+  onpointerenter={show}
+  onpointerleave={hide}
+  onfocusin={show}
+  onfocusout={hide}
+  onkeydown={onKeydown}
+>
+  <button bind:this={trigger} type="button" class="trigger" aria-label={`What is ${label}?`} aria-describedby={id}>?</button>
+  <span
+    class="tip"
+    class:open
+    role="tooltip"
+    {id}
+    style:left="{pos.left}px"
+    style:bottom="{pos.bottom}px"
+    style:max-width="{pos.width}px"
+  >
+    {text}
+  </span>
 </span>
 
 <style>
   .help {
-    position: relative;
     display: inline-flex;
     vertical-align: middle;
   }
   .trigger {
     /* Visual circle is small; the hit area is padded up to the touch target. */
+    position: relative;
     display: inline-grid;
     place-items: center;
     width: 22px;
     height: 22px;
-    min-height: 0;
     margin: -11px 0;
     padding: 0;
     border: 1px solid var(--color-border);
@@ -53,16 +97,13 @@
   .trigger:focus-visible {
     border-color: var(--color-accent);
     color: var(--color-accent);
-    background: var(--color-surface-raised);
   }
   .tip {
-    position: absolute;
-    z-index: 10;
-    /* Opens to the right: the button usually sits near the left edge of a form. */
-    left: -12px;
-    bottom: calc(100% + 10px);
+    /* Hidden tips take no space at all (display: none), so they cannot widen the page. */
+    display: none;
+    position: fixed;
+    z-index: 30;
     width: max-content;
-    max-width: min(280px, 80vw);
     padding: 10px 12px;
     background: var(--color-tip-bg);
     border: 1px solid var(--color-tip-border);
@@ -72,14 +113,9 @@
     font-weight: var(--weight-regular);
     line-height: 1.4;
     text-align: left;
-    visibility: hidden;
-    opacity: 0;
-    transition: opacity 120ms ease-out;
     pointer-events: none;
   }
-  .help:hover .tip,
-  .help:focus-within .tip {
-    visibility: visible;
-    opacity: 1;
+  .tip.open {
+    display: block;
   }
 </style>
