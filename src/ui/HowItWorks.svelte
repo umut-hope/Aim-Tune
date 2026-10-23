@@ -122,8 +122,10 @@
   <section>
     <h2>Privacy</h2>
     <p>
-      Everything runs in your browser. Nothing is uploaded; the only thing stored is what you choose to save, in your
-      browser's local storage. A result link carries the numbers in the address itself.
+      Everything runs in your browser and nothing is uploaded. Your browser's local storage keeps your unit choice, your
+      last ten results (so runs can be combined), a mouse calibration if you made one, and the profile if you save it.
+      A result link carries the numbers in the address itself, and the feedback form on GitHub only shares what you
+      submit there.
     </p>
   </section>
 
