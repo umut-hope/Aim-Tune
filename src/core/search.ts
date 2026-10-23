@@ -30,6 +30,11 @@ export interface SearchConfig {
    * Below it the round is decided by flick bias.
    */
   tieZ: number
+  /**
+   * Whether bias may decide close rounds. Off for tracking, where reaction
+   * time adds a lag even at the right sens, so bias would pull the result short.
+   */
+  biasTieBreak: boolean
   /** Smallest share of valid shots for a block to count; otherwise it is repeated once. */
   minValidShare: number
   /** How many times an unreliable block may be repeated. */
@@ -56,6 +61,7 @@ export const DEFAULT_SEARCH: Readonly<Omit<SearchConfig, 'initial' | 'scoring'>>
   shotsPerBlock: 10,
   warmupShots: 10,
   tieZ: 1,
+  biasTieBreak: true,
   minValidShare: 0.6,
   maxRetries: 1,
   minHalfWidth: 0.04,
@@ -255,6 +261,7 @@ export function decideRound(
   low: BlockResult,
   high: BlockResult,
   tieZ: number,
+  useBias = true,
 ): { winner: Side | null; decidedBy: RoundResult['decidedBy']; biasEstimate: number } {
   const estimate = biasEstimate(low, high)
   const ls = low.summary
@@ -272,14 +279,14 @@ export function decideRound(
     return { winner: lowOk ? 'low' : 'high', decidedBy: 'score', biasEstimate: estimate }
   }
 
-  if (Number.isFinite(estimate)) {
+  if (useBias && Number.isFinite(estimate)) {
     const distLow = Math.abs(Math.log(estimate / low.cm360))
     const distHigh = Math.abs(Math.log(estimate / high.cm360))
     if (distLow !== distHigh) {
       return { winner: distLow < distHigh ? 'low' : 'high', decidedBy: 'bias', biasEstimate: estimate }
     }
   }
-  if (lowOk && highOk && ls.score !== hs.score) {
+  if (useBias && lowOk && highOk && ls.score !== hs.score) {
     return { winner: hs.score > ls.score ? 'high' : 'low', decidedBy: 'score', biasEstimate: estimate }
   }
   return { winner: null, decidedBy: 'none', biasEstimate: estimate }
@@ -290,13 +297,21 @@ export function decideRound(
  * (too many invalid shots) are repeated up to `maxRetries` times.
  */
 export function submitBlock(state: SearchState, shots: readonly Shot[]): SearchState {
+  return submitSummary(state, summarizeBlock(shots, state.config.scoring))
+}
+
+/**
+ * Records an already summarised block. Other test types (tracking) score their
+ * own trials and hand the search the same kind of summary: a score, its error,
+ * and a signed bias where positive means the sens is too high.
+ */
+export function submitSummary(state: SearchState, summary: BlockSummary): SearchState {
   const request = nextBlock(state)
   if (!request) throw new Error('search is already finished')
   const { config } = state
 
   if (request.kind === 'warmup') return { ...state, warmupDone: true }
 
-  const summary = summarizeBlock(shots, config.scoring)
   const needed = Math.ceil(config.minValidShare * config.shotsPerBlock)
   if (summary.validCount < needed && state.attempt < config.maxRetries) {
     return { ...state, attempt: state.attempt + 1 }
@@ -308,13 +323,16 @@ export function submitBlock(state: SearchState, shots: readonly Shot[]): SearchS
 
   const low = side === 'low' ? block : state.pending
   const high = side === 'high' ? block : state.pending
-  const decision = decideRound(low, high, config.tieZ)
+  const decision = decideRound(low, high, config.tieZ, config.biasTieBreak)
   const center = decision.winner ? testPoints(state.range)[decision.winner] : geometricCenter(state.range)
+  // Without a bias tie-break, a round that cannot tell the two apart leaves the
+  // range as it is: narrowing it would claim precision the data does not have.
+  const keep = decision.winner === null && !config.biasTieBreak
 
   const result: RoundResult = { round: state.round, range: state.range, low, high, ...decision }
   return {
     ...state,
-    range: halveAround(state.range, center),
+    range: keep ? state.range : halveAround(state.range, center),
     round: state.round + 1,
     attempt: 0,
     pending: null,
@@ -351,11 +369,17 @@ export function searchResult(state: SearchState): SearchResult | null {
   }
 
   let edge: Side | null = null
-  if (last && Number.isFinite(last.biasEstimate)) {
-    const atHigh = bracket.hi >= config.initial.hi * (1 - EDGE_TOLERANCE)
-    const atLow = bracket.lo <= config.initial.lo * (1 + EDGE_TOLERANCE)
-    if (atHigh && last.biasEstimate > bracket.hi) edge = 'high'
-    else if (atLow && last.biasEstimate < bracket.lo) edge = 'low'
+  const atHigh = bracket.hi >= config.initial.hi * (1 - EDGE_TOLERANCE)
+  const atLow = bracket.lo <= config.initial.lo * (1 + EDGE_TOLERANCE)
+  if (config.biasTieBreak) {
+    if (last && Number.isFinite(last.biasEstimate)) {
+      if (atHigh && last.biasEstimate > bracket.hi) edge = 'high'
+      else if (atLow && last.biasEstimate < bracket.lo) edge = 'low'
+    }
+  } else if (state.history.length > 0) {
+    // Without bias, an edge is flagged when every round chose that side.
+    if (atHigh && state.history.every((r) => r.winner === 'high')) edge = 'high'
+    else if (atLow && state.history.every((r) => r.winner === 'low')) edge = 'low'
   }
 
   return { range, center, finalBracket: bracket, halfWidth: h, edge, rounds: state.history }

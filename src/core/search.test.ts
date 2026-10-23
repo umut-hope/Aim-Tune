@@ -40,6 +40,43 @@ const block = (cm360: number, side: 'low' | 'high', relAlong: number, n = 10): B
   summary: summarizeBlock(shots(n, relAlong)),
 })
 
+describe('searching without a bias tie-break', () => {
+  const block = (cm360: number, side: 'low' | 'high', score: number, n = 5): BlockResult => ({
+    cm360,
+    side,
+    summary: { ...summarizeBlock(shots(n, 0)), score, scoreError: 0.02, bias: -0.3 },
+  })
+
+  it('ignores bias and declares no winner when scores are close', () => {
+    expect(decideRound(block(30, 'low', 0.8), block(45, 'high', 0.81), 1, false)).toMatchObject({
+      winner: null,
+      decidedBy: 'none',
+    })
+    expect(decideRound(block(30, 'low', 0.8), block(45, 'high', 0.9), 1, false)).toMatchObject({
+      winner: 'high',
+      decidedBy: 'score',
+    })
+  })
+
+  it('keeps the range after an undecided round', () => {
+    let s = createSearch({ warmupShots: 0, biasTieBreak: false, rounds: 2 })
+    const flat = shots(10, 0)
+    s = submitBlock(s, flat)
+    s = submitBlock(s, flat)
+    expect(s.history[0]!.winner).toBeNull()
+    expect(s.range).toEqual({ lo: 20, hi: 60 })
+  })
+
+  it('flags an edge when every round chose that side', () => {
+    let s = createSearch({ warmupShots: 0, biasTieBreak: false, rounds: 3 })
+    for (let b = nextBlock(s); b; b = nextBlock(s)) {
+      // Longer distances score better every time.
+      s = submitBlock(s, shots(10, b.side === 'high' ? 0 : 0.3))
+    }
+    expect(searchResult(s)!.edge).toBe('high')
+  })
+})
+
 describe('rangeBeyond', () => {
   it('centres the next test on the edge the result hit', () => {
     const high = rangeBeyond({ lo: 20, hi: 60 }, 'high')

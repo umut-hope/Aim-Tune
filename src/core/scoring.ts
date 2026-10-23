@@ -98,11 +98,11 @@ export interface BlockSummary {
   meanTimeMs: number
 }
 
-const mean = (xs: readonly number[]): number =>
+export const mean = (xs: readonly number[]): number =>
   xs.length === 0 ? Number.NaN : xs.reduce((a, b) => a + b, 0) / xs.length
 
 /** Sample standard deviation; NaN with fewer than two values. */
-const sampleSd = (xs: readonly number[]): number => {
+export const sampleSd = (xs: readonly number[]): number => {
   if (xs.length < 2) return Number.NaN
   const m = mean(xs)
   return Math.sqrt(xs.reduce((acc, x) => acc + (x - m) ** 2, 0) / (xs.length - 1))
