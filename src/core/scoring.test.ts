@@ -27,6 +27,12 @@ describe('shot scoring', () => {
     expect(shotScore(shot({ along: 4 }))).toBeCloseTo(shotScore(shot({ along: -4 })), 12)
   })
 
+  it('does not punish small corrections for the hand precision floor', () => {
+    // A 1° miss on a 5° correction is judged like a 1° miss on a 15° flick.
+    expect(accuracyScore(shot({ targetAngle: 5, along: 1 }))).toBeCloseTo(accuracyScore(shot({ targetAngle: 15, along: 1 })), 12)
+    expect(accuracyScore(shot({ targetAngle: 5, along: 1 }))).toBeGreaterThan(0.6)
+  })
+
   it('judges error relative to the flick size', () => {
     expect(accuracyScore(shot({ targetAngle: 90, along: 5 }))).toBeGreaterThan(
       accuracyScore(shot({ targetAngle: 20, along: 5 })),

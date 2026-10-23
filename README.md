@@ -19,9 +19,10 @@ No install, no account. Open it on a computer with a mouse; the test takes about
 You pick your game, sens and DPI, and a test:
 
 - **Full test** (default, about 4 minutes): a flick part, then a tracking part. Each finds its own range and the
-  result is their weighted average; you pick the weights by how your game plays (mostly flicks 80/20, both 60/40,
+  result is their weighted average; you pick the weights by how your game plays (mostly flicks 85/15, both 60/40,
   mostly tracking 35/65).
 - **Flick only:** in a simple 3D room you flick from a white dot to yellow targets and click once per target.
+  About a third of the targets are small 4–15° corrections, as when the crosshair is already near an enemy.
 - **Tracking only:** you keep the crosshair on a target that moves along a smooth, changing path.
 
 Each round tests two distances per 360°, keeps the part of the range that scored better, and narrows it down.

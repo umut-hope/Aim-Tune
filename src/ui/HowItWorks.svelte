@@ -26,6 +26,11 @@
       <li>You flick to it and click once. The test records how far you went past the target (overshoot) or stopped short (undershoot), how far you were off to the side, and how long it took.</li>
       <li>You return to the dot, and the next target appears.</li>
     </ol>
+    <p>
+      About a third of the targets are small corrections, 4–15° away: in most shooters many fights start with the
+      crosshair already close to the enemy. A small miss on a small correction is judged fairly, since nobody's hand is
+      more precise than about a degree.
+    </p>
     <p>The camera uses your game's field of view, so targets show up where they would in game.</p>
   </section>
 
@@ -66,7 +71,7 @@
     <p>
       You set one sens in game, so the default test does both: a flick part, then a tracking part, about four minutes
       in all. Each part finds its own range, and the result is their weighted average. You choose the weights by how your
-      game plays: mostly flicks (80% flick, 20% tracking), both (60/40) or mostly tracking (35/65).
+      game plays: mostly flicks (85% flick, 15% tracking), both (60/40) or mostly tracking (35/65).
     </p>
     <p>
       Why not one combined score? A sens that is a quarter off ruins flicks but only costs tracking a few percent, so

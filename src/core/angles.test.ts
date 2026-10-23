@@ -141,7 +141,29 @@ describe('randomTargetSpec', () => {
     }
   })
 
+  it('mixes in small corrections at the requested share', () => {
+    const rng = seededRng(21)
+    let micro = 0
+    for (let i = 0; i < 1000; i++) {
+      const { angleDeg } = randomTargetSpec(rng, { microShare: 0.3 })
+      if (angleDeg < 20) {
+        micro++
+        expect(angleDeg).toBeGreaterThanOrEqual(4)
+        expect(angleDeg).toBeLessThanOrEqual(15)
+      }
+    }
+    expect(micro).toBeGreaterThan(250)
+    expect(micro).toBeLessThan(350)
+  })
+
+  it('draws the same targets as before when small corrections are off', () => {
+    const a = seededRng(5)
+    const b = seededRng(5)
+    for (let i = 0; i < 50; i++) expect(randomTargetSpec(a)).toEqual(randomTargetSpec(b, { microShare: 0 }))
+  })
+
   it('rejects invalid options', () => {
+    expect(() => randomTargetSpec(Math.random, { microShare: 1.5 })).toThrow(RangeError)
     expect(() => randomTargetSpec(Math.random, { minAngle: 50, maxAngle: 40 })).toThrow(RangeError)
     expect(() => randomTargetSpec(Math.random, { maxTilt: 120 })).toThrow(RangeError)
   })

@@ -6,7 +6,7 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createSearch, initialRange, nextBlock, searchResult, submitBlock, type SearchOptions, type SearchResult } from './search'
-import type { TargetSpecOptions } from './angles'
+import { DEFAULT_MICRO_SHARE, type TargetSpecOptions } from './angles'
 import { makePlayer, seededRng, simulateBlock, type PlayerProfile } from './testing/simulated-player'
 import { resolveView } from './view'
 
@@ -78,6 +78,16 @@ describe('simulated players', () => {
     const s = evaluate(makePlayer(38), {}, { view })
     expect(s.median).toBeLessThan(0.04)
     expect(s.p90).toBeLessThan(0.07)
+    expect(s.coverage).toBeGreaterThan(0.75)
+  })
+
+  it.each([
+    ['an average player', makePlayer(38), 0.04, 0.07],
+    ['a player with hand tremor', makePlayer(38, { handJitterCm: 0.3 }), 0.06, 0.12],
+  ] as const)('stays on target with small corrections mixed in, for %s', (_label, player, median, p90) => {
+    const s = evaluate(player, {}, { view: resolveView({ gameFov: { default: 90, type: 'horizontal-4:3', adjustable: false }, aspect: 16 / 9 }), microShare: DEFAULT_MICRO_SHARE })
+    expect(s.median).toBeLessThan(median)
+    expect(s.p90).toBeLessThan(p90)
     expect(s.coverage).toBeGreaterThan(0.75)
   })
 

@@ -22,6 +22,7 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte'
   import type { SearchResult } from '../core/search'
+  import { DEFAULT_MICRO_SHARE } from '../core/angles'
   import { degreesPerCountAtCm360, fromCm } from '../core/units'
   import { FlickScene } from '../scene/flick-scene'
   import { PointerLockInput, type RawInput } from '../scene/pointer-lock'
@@ -52,7 +53,7 @@
 
   // svelte-ignore state_referenced_locally
   let flow = $state.raw<FlickFlowState>(
-    createFlickFlow({ search: { ...config.search, initial: config.initial }, targets: { view: config.view } }),
+    createFlickFlow({ search: { ...config.search, initial: config.initial }, targets: { view: config.view, microShare: DEFAULT_MICRO_SHARE } }),
   )
   let raw = $state<RawInput>('unknown')
   let fps = $state(0)

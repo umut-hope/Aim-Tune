@@ -160,7 +160,17 @@ export interface TargetSpecOptions {
   view?: View
   /** Share of the half-screen targets may use, with `view`. Default 0.9. */
   edgeMargin?: number
+  /**
+   * Share of targets that are small corrections instead of full flicks, as when
+   * the crosshair is already close to where an enemy appears. Default 0.
+   */
+  microShare?: number
+  /** Angle range of small corrections, degrees. Default 4–15. */
+  microRange?: readonly [number, number]
 }
+
+/** Share of small corrections in the flick test: in most shooters many kills start close to the crosshair. */
+export const DEFAULT_MICRO_SHARE = 0.3
 
 export interface TargetSpec {
   angleDeg: number
@@ -186,11 +196,18 @@ export function randomTargetSpec(rng: () => number, options: TargetSpecOptions =
     throw new RangeError(`maxTilt must be between 0 and 90, got ${maxTilt}`)
   }
 
+  const microShare = options.microShare ?? 0
+  if (!(microShare >= 0 && microShare <= 1)) throw new RangeError(`microShare must be in [0, 1], got ${microShare}`)
+
   const tilt = (rng() * 2 - 1) * maxTilt
   const directionDeg = rng() < 0.5 ? tilt : 180 - tilt
 
-  let hi = maxAngle
-  let lo = minAngle
+  // Only draw the extra random number when small corrections are on, so
+  // seeded runs without them stay unchanged.
+  const micro = microShare > 0 && rng() < microShare
+  const [microLo, microHi] = options.microRange ?? [4, 15]
+  let hi = micro ? microHi : maxAngle
+  let lo = micro ? microLo : minAngle
   if (options.view) {
     hi = Math.min(hi, maxOnScreenAngle(options.view, directionDeg, options.edgeMargin ?? 0.9))
     if (hi < lo) lo = hi / 2

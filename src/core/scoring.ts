@@ -44,8 +44,14 @@ export const DEFAULT_SCORING: Readonly<ScoringOptions> = {
   maxRelativeError: 1,
 }
 
+/**
+ * Smallest flick size errors are judged against, degrees. Hand precision has a
+ * floor, so missing a 5° correction by 1° should not count as a 20% miss.
+ */
+export const MIN_REFERENCE_ANGLE = 15
+
 export function relativeError(shot: Shot): number {
-  return Math.hypot(shot.along, shot.perpendicular) / shot.targetAngle
+  return Math.hypot(shot.along, shot.perpendicular) / Math.max(shot.targetAngle, MIN_REFERENCE_ANGLE)
 }
 
 export function isValidShot(shot: Shot, options: ScoringOptions = DEFAULT_SCORING): boolean {
