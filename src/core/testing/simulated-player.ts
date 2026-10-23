@@ -52,6 +52,16 @@ export interface PlayerProfile {
   baseTimeMs: number
   timePerDegMs: number
   timeNoiseMs: number
+  /**
+   * Human effects (all 0 for the idealised player). Learning: extra noise at
+   * the start of a session (+learningExtra, fading over ~learningShots shots).
+   */
+  learningExtra: number
+  learningShots: number
+  /** Block-to-block swing in form: log-normal spread of the noise per block. */
+  formSwing: number
+  /** Chance a block is clearly bad (distracted, tired): noise doubled. */
+  badBlockRate: number
 }
 
 export const AVERAGE_PLAYER: Readonly<Omit<PlayerProfile, 'preferredCm360'>> = {
@@ -63,6 +73,31 @@ export const AVERAGE_PLAYER: Readonly<Omit<PlayerProfile, 'preferredCm360'>> = {
   baseTimeMs: 300,
   timePerDegMs: 4,
   timeNoiseMs: 60,
+  learningExtra: 0,
+  learningShots: 25,
+  formSwing: 0,
+  badBlockRate: 0,
+}
+
+/**
+ * A player who behaves more like a person than the average player: adapts to
+ * each distance, warms up over the session, has better and worse blocks, and
+ * now and then a bad one. Used to check that one run is not thrown off by an
+ * unlucky early round.
+ */
+export const HUMAN_EFFECTS: Readonly<Partial<Omit<PlayerProfile, 'preferredCm360'>>> = {
+  adaptRate: 0.08,
+  handJitterCm: 0.1,
+  lapseRate: 0.03,
+  learningExtra: 0.8,
+  learningShots: 25,
+  formSwing: 0.3,
+  badBlockRate: 0.1,
+}
+
+/** Shots taken so far in one simulated session, for the learning effect. */
+export interface SimSession {
+  shots: number
 }
 
 export function makePlayer(
@@ -81,10 +116,19 @@ export function simulateBlock(
   request: BlockRequest,
   rng: () => number,
   targets: TargetSpecOptions = {},
+  session: SimSession = { shots: 0 },
 ): Shot[] {
   const shots: Shot[] = []
   let model = player.preferredCm360
+  // Only draw extra random numbers when human effects are on, so seeded runs
+  // of the idealised players stay unchanged.
+  let blockNoise = 1
+  if (player.formSwing > 0) blockNoise *= Math.exp(gaussian(rng) * player.formSwing)
+  if (player.badBlockRate > 0 && rng() < player.badBlockRate) blockNoise *= 2
   for (let i = 0; i < request.shots; i++) {
+    const learning = 1 + player.learningExtra * Math.exp(-session.shots / player.learningShots)
+    const noise = blockNoise * learning
+    session.shots++
     const { angleDeg } = randomTargetSpec(rng, targets)
     const timeMs = Math.max(
       120,
@@ -97,12 +141,13 @@ export function simulateBlock(
     }
 
     const plannedCm = (angleDeg / 360) * model
-    const handCm = plannedCm * Math.exp(gaussian(rng) * player.distanceNoise) + gaussian(rng) * player.handJitterCm
+    const handCm =
+      plannedCm * Math.exp(gaussian(rng) * player.distanceNoise * noise) + gaussian(rng) * player.handJitterCm * noise
     const turned = (handCm / request.cm360) * 360
     shots.push({
       targetAngle: angleDeg,
       along: turned - angleDeg,
-      perpendicular: gaussian(rng) * player.perpendicularNoise * angleDeg,
+      perpendicular: gaussian(rng) * player.perpendicularNoise * noise * angleDeg,
       timeMs,
     })
     model += player.adaptRate * (request.cm360 - model)
