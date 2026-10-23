@@ -139,6 +139,24 @@ export function initialRange(currentCm360?: number | null, spread = 0.3): Range 
   return { lo: currentCm360 * (1 - spread), hi: currentCm360 * (1 + spread) }
 }
 
+/** Plausible limits for any cm/360 the test will try. */
+export const CM360_LIMITS: Readonly<Range> = { lo: 5, hi: 200 }
+
+/**
+ * Starting range for a follow-up test when the result hit an edge: centred on
+ * that edge of the previous starting range, ±spread, so the search can look
+ * past it. Clamped to plausible distances.
+ */
+export function rangeBeyond(previous: Range, edge: Side, spread = 0.3): Range {
+  assertRange(previous)
+  if (!(spread > 0 && spread < 1)) throw new RangeError(`spread must be in (0, 1), got ${spread}`)
+  const center = edge === 'high' ? previous.hi : previous.lo
+  return {
+    lo: Math.max(CM360_LIMITS.lo, center * (1 - spread)),
+    hi: Math.min(CM360_LIMITS.hi, center * (1 + spread)),
+  }
+}
+
 export function geometricCenter(range: Range): number {
   return Math.sqrt(range.lo * range.hi)
 }

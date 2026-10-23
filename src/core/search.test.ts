@@ -5,6 +5,7 @@ import {
   decideRound,
   geometricCenter,
   initialRange,
+  rangeBeyond,
   nextBlock,
   searchResult,
   submitBlock,
@@ -37,6 +38,43 @@ const block = (cm360: number, side: 'low' | 'high', relAlong: number, n = 10): B
   cm360,
   side,
   summary: summarizeBlock(shots(n, relAlong)),
+})
+
+describe('rangeBeyond', () => {
+  it('centres the next test on the edge the result hit', () => {
+    const high = rangeBeyond({ lo: 20, hi: 60 }, 'high')
+    expect(high.lo).toBeCloseTo(42, 9)
+    expect(high.hi).toBeCloseTo(78, 9)
+    const low = rangeBeyond({ lo: 20, hi: 60 }, 'low')
+    expect(low.lo).toBeCloseTo(14, 9)
+    expect(low.hi).toBeCloseTo(26, 9)
+  })
+
+  it('overlaps the previous range so the edge itself is tested again', () => {
+    const r = rangeBeyond({ lo: 30, hi: 50 }, 'high')
+    expect(r.lo).toBeLessThan(50)
+    expect(r.hi).toBeGreaterThan(50)
+  })
+
+  it('stays within plausible distances', () => {
+    expect(rangeBeyond({ lo: 120, hi: 180 }, 'high').hi).toBe(200)
+    expect(rangeBeyond({ lo: 6, hi: 12 }, 'low').lo).toBe(5)
+  })
+
+  it('rejects bad input', () => {
+    expect(() => rangeBeyond({ lo: 50, hi: 40 }, 'high')).toThrow(RangeError)
+    expect(() => rangeBeyond({ lo: 20, hi: 60 }, 'high', 2)).toThrow(RangeError)
+  })
+
+  it('finds a player beyond the first range on the second try', () => {
+    // A noise-free player at 75 cm: the first run flags the high edge, the follow-up covers 75.
+    const first = searchResult(deterministicRun(75, createSearch()))!
+    expect(first.edge).toBe('high')
+    const second = searchResult(deterministicRun(75, createSearch({ initial: rangeBeyond({ lo: 20, hi: 60 }, 'high') })))!
+    expect(second.edge).toBeNull()
+    expect(second.range.lo).toBeLessThanOrEqual(75)
+    expect(second.range.hi).toBeGreaterThanOrEqual(75)
+  })
 })
 
 describe('initialRange', () => {

@@ -1,6 +1,6 @@
 <script lang="ts">
   import type { Component } from 'svelte'
-  import type { SearchResult } from './core/search'
+  import { rangeBeyond, type SearchResult, type Side } from './core/search'
   import type { DistanceUnit } from './core/units'
   import { resolveView } from './core/view'
   import { gamesLoader, type Game } from './data/games'
@@ -167,6 +167,14 @@
     screen = 'test'
   }
 
+  /** Follow-up test when the result hit an edge: centred on that end of the last starting range. */
+  function retestBeyond(edge: Side) {
+    if (!startConfig) return
+    startConfig = { ...startConfig, initial: rangeBeyond(startConfig.initial, edge) }
+    testRun++
+    screen = 'test'
+  }
+
   function newTest() {
     screen = 'setup'
     history.replaceState(null, '', `${import.meta.env.BASE_URL}#/`)
@@ -224,6 +232,7 @@
         {unit}
         onRetest={startConfig ? retest : null}
         onNewTest={newTest}
+        onRetestBeyond={startConfig ? retestBeyond : null}
         {abOutcome}
         onAbTest={startAb}
       />

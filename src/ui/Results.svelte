@@ -36,11 +36,13 @@
     /** Retest with the same settings; null when there are none (shared link). */
     onRetest: (() => void) | null
     onNewTest: () => void
+    /** Retest from the edge the result hit; null when there are no settings (shared link). */
+    onRetestBeyond: ((edge: Side) => void) | null
     abOutcome: AbOutcome | null
     onAbTest: (first: AbOption, second: AbOption, blind: boolean) => void
   }
 
-  let { result, games, unit, onRetest, onNewTest, abOutcome, onAbTest }: Props = $props()
+  let { result, games, unit, onRetest, onNewTest, onRetestBeyond, abOutcome, onAbTest }: Props = $props()
 
   let saved = $state<'idle' | 'saved' | 'failed'>('idle')
 
@@ -128,8 +130,18 @@
         <p class="tip-title">Your best distance may lie {result.edge === 'high' ? 'above' : 'below'} the tested range</p>
         <p>
           The test kept pointing {result.edge === 'high' ? 'towards longer distances (lower sens)' : 'towards shorter distances (higher sens)'}.
-          Retest starting from the edge of this range to explore further.
+          {#if onRetestBeyond}
+            A second test centred on that end can look past it.
+          {:else}
+            Take the test yourself, starting from your own sens, to explore further.
+          {/if}
         </p>
+        {#if onRetestBeyond}
+          {@const edge = result.edge}
+          <button type="button" class="btn btn-primary edge-retest" onclick={() => onRetestBeyond(edge)}>
+            Test {edge === 'high' ? 'longer distances (lower sens)' : 'shorter distances (higher sens)'}
+          </button>
+        {/if}
       </div>
     {/if}
 
@@ -258,6 +270,9 @@
     gap: 0.5rem 1rem;
     padding-top: 0.6rem;
     border-top: 1px solid var(--color-border);
+  }
+  .edge-retest {
+    margin-top: 0.75rem;
   }
   .actions {
     display: grid;
