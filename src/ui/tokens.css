@@ -1,0 +1,11 @@
+/*
+ * Design tokens. The shared "Mousepad" set comes straight from yawmatch so both
+ * sites stay identical; only aimtune-specific tokens are defined here.
+ */
+@import 'yawmatch/src/styles/tokens.css';
+
+:root {
+  /* Flick bias. Never shown by colour alone: always with a sign and a label. */
+  --color-overshoot: #f2c94c;
+  --color-undershoot: #7aa7ff;
+}
