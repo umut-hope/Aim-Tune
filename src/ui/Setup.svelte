@@ -41,10 +41,10 @@
     preload,
   }: Props = $props()
 
-  const KINDS: { id: TestKind; name: string; desc: string }[] = [
-    { id: 'full', name: 'Full test', desc: 'Flicks + tracking · ~4.5 min' },
-    { id: 'flick', name: 'Flick only', desc: 'Snap to targets · ~2.5 min' },
-    { id: 'tracking', name: 'Tracking only', desc: 'Follow a target · ~3 min' },
+  const KINDS: { id: TestKind; name: string; tag: string; desc: string }[] = [
+    { id: 'flick', name: 'Flick test', tag: 'recommended', desc: 'Snap to targets · ~2 min' },
+    { id: 'full', name: 'Full test', tag: 'experimental', desc: 'Flicks, then tracking · ~4.5 min' },
+    { id: 'tracking', name: 'Tracking only', tag: 'experimental', desc: 'Follow a moving target · ~3 min' },
   ]
   const STYLES: { id: AimStyle; name: string; examples: string }[] = [
     { id: 'flicks', name: 'Mostly flicks', examples: 'e.g. Valorant, CS2, Rainbow Six Siege' },
@@ -54,11 +54,11 @@
   const pct = (x: number) => `${Math.round(x * 100)}%`
 
   const HELP = {
-    kind: 'Full test: a flick part, then a tracking part, combined into one range. Flick only: snap to targets that appear, one click each. Tracking only: keep the crosshair on a moving target. Tracking results are usually broader.',
+    kind: "Flick test: snap to targets that appear, one click each; the clearest measurement, and two runs combined are better than one long test. Full test and tracking add a moving target; in testing, tracking often cannot tell sens settings apart (reaction time hides small differences), so they are marked experimental.",
     style:
       'Each part finds its own best range; the result is their weighted average (on a log scale, since sens feels proportional). Flicks keep at least 35% because tracking alone measures sens less precisely, and tracking counts only as much as it could tell distances apart. Your game is a guess at the mix: pick what matches how you actually play.',
     game: "Your main game. Sets the field of view so targets appear where they would in that game, and converts the result to its sens.",
-    sens: 'The mouse sensitivity in your game settings, as the game shows it.',
+    sens: "The mouse sensitivity you actually play with now, as the game shows it. Keep using it here after a test until you have tried a new value in game: the test should start from what your hand knows.",
     dpi: 'Counts per inch of your mouse, set in its own software (often 400, 800 or 1600). Not the in-game sensitivity.',
     distance:
       'How far you move the mouse for a full 360° turn. yawmatch can work it out from your in-game sens.',
@@ -113,8 +113,8 @@
 <section class="hero">
   <h1>Find the sens your hand actually likes.</h1>
   <p class="hero-sub">
-    A short flick and tracking test in your browser, about 4.5 minutes. It measures how you aim and suggests a range,
-    not a single magic number. You need a mouse.
+    A short flick test in your browser, about 2 minutes. It measures how you aim and suggests a range, not a single
+    magic number; two runs combined give a steadier answer. You need a mouse.
   </p>
 </section>
 
@@ -128,7 +128,7 @@
       <div class="kinds" role="group" aria-labelledby="kind-label">
         {#each KINDS as k (k.id)}
           <button type="button" aria-pressed={kind === k.id} onclick={() => (kind = k.id)}>
-            <span class="kind-name">{k.name}{k.id === 'full' ? ' (recommended)' : ''}</span>
+            <span class="kind-name">{k.name} <span class="kind-tag" class:experimental={k.tag === 'experimental'}>{k.tag}</span></span>
             <span class="kind-desc">{k.desc}</span>
           </button>
         {/each}
@@ -395,6 +395,21 @@
   .kinds button[aria-pressed='true'] .kind-name,
   .styles button[aria-checked='true'] .kind-name {
     color: var(--color-accent);
+  }
+  .kind-tag {
+    margin-left: 0.25rem;
+    padding: 0 0.4rem;
+    border-radius: 999px;
+    background: var(--color-accent);
+    color: var(--color-on-accent);
+    font-size: 0.7rem;
+    font-weight: var(--weight-bold);
+    vertical-align: 0.1em;
+  }
+  .kind-tag.experimental {
+    background: transparent;
+    border: 1px solid var(--color-border);
+    color: var(--color-text-muted);
   }
   .kind-desc {
     font-size: 0.8rem;

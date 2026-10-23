@@ -69,10 +69,19 @@
   </section>
 
   <section>
-    <h2>The full test</h2>
+    <h2>One run is not the whole story</h2>
     <p>
-      You set one sens in game, so the default test does both: a flick part, then a tracking part, about four and a half minutes
-      in all. Each part finds its own range, and the result is their weighted average. You choose the weights by how your
+      A few minutes in a browser moves by several percent from run to run: warm-up, a distracted block, a lucky round. The
+      site remembers your recent results in this browser and combines up to three from the last two weeks into one range.
+      When they disagree by more than 15% it says so and suggests one more run. Two flick runs combined are worth more than
+      any single longer test.
+    </p>
+  </section>
+
+  <section>
+    <h2>The full test (experimental)</h2>
+    <p>
+      The full test adds tracking: a flick part, then a tracking part, about four and a half minutes in all. Each part finds its own range, and the result is their weighted average. You choose the weights by how your
       game plays: mostly flicks (85% flick, 15% tracking), both (60/40) or mostly tracking (35/65).
     </p>
     <p>
@@ -84,7 +93,8 @@
       Tracking also counts only as much as it could actually tell distances apart. Reaction time makes everyone trail a
       moving target, which hides small sens differences, so a tracking round often ends undecided. If half its rounds were
       undecided, tracking gets half its weight; if none were decided, the result rests on your flicks. The results page
-      shows the weights that were applied and says so plainly.
+      shows the weights that were applied and says so plainly. In real runs so far the tracking part rarely decided much,
+      which is why the flick test is the recommended one.
     </p>
   </section>
 

@@ -37,7 +37,7 @@
   let games = $state.raw<Game[]>([])
   let gamesError = $state<string | null>(null)
   let form = $state<SetupForm>({ ...DEFAULT_FORM })
-  let kind = $state<TestKind>('full')
+  let kind = $state<TestKind>('flick')
   let style = $state<AimStyle>('both')
 
   // A shared result link opens straight on the results screen.
