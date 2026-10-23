@@ -17,7 +17,8 @@
   import Footer from './ui/Footer.svelte'
   import Header from './ui/Header.svelte'
   import HowItWorks from './ui/HowItWorks.svelte'
-  import { parseResultParams, parseSetupParams, resultQuery } from './ui/links'
+  import { loadCalibration } from './ui/calibration'
+  import { browserName, parseResultParams, parseSetupParams, resultQuery } from './ui/links'
   import { getStorage, loadUnit, saveUnit } from './ui/prefs'
   import { addToHistory, clearHistory, loadHistory, type HistoryEntry } from './ui/history'
   import { loadProfile } from './ui/profile'
@@ -288,7 +289,9 @@
     const view =
       startConfig?.view ??
       resolveView({ gameFov: game?.fov ?? null, aspect: window.screen.width / window.screen.height })
-    abConfig = { dpi: result.dpi, view, first, second, blind, unit }
+    const inputDpi =
+      startConfig?.inputDpi ?? result.dpi * (loadCalibration(getStorage(), browserName(navigator.userAgent)) ?? 1)
+    abConfig = { dpi: inputDpi, view, first, second, blind, unit }
     loadError = null
     await loadAb()
     if (AbTest) {
@@ -309,7 +312,8 @@
 
   const testConfig = $derived.by<FlickTestConfig | null>(() => {
     if (!startConfig) return null
-    const base = { dpi: startConfig.dpi, view: startConfig.view, initial: startConfig.initial, unit }
+    // The test turns the camera with the counts this browser really reports.
+    const base = { dpi: startConfig.inputDpi, view: startConfig.view, initial: startConfig.initial, unit }
     if (startConfig.kind !== 'full') return base
     return part === 'flick'
       ? { ...base, search: FULL_FLICK_SEARCH, part: 'Part 1 of 2 · Flicks' }

@@ -11,8 +11,11 @@
   import type { Game } from '../data/games'
   import { probeRawInput, type RawInput } from '../scene/pointer-lock'
   import { fpsStatus, hasFinePointer, measureFps, pointerLockSupported } from './checks'
+  import Calibration from './Calibration.svelte'
+  import { clearCalibration, loadCalibration, saveCalibration } from './calibration'
   import HelpTip from './HelpTip.svelte'
-  import { formatNumber, parsePositive } from './links'
+  import { getStorage } from './prefs'
+  import { browserName, formatNumber, parsePositive } from './links'
   import Ruler from './Ruler.svelte'
   import { MANUAL_GAME, currentCm360, isPlausibleCm360, type SetupForm, type StartConfig, type TestKind } from './setup'
 
@@ -66,6 +69,15 @@
   }
 
   const finePointer = hasFinePointer()
+  const browser = typeof navigator === 'undefined' ? 'Other' : browserName(navigator.userAgent)
+  /** Saved input correction for this browser (reported / expected counts), or null. */
+  let calibration = $state<number | null>(loadCalibration(getStorage(), browser))
+
+  function applyCalibration(ratio: number | null) {
+    calibration = ratio
+    if (ratio === null) clearCalibration(getStorage(), browser)
+    else saveCalibration(getStorage(), browser, ratio)
+  }
   const lockSupported = pointerLockSupported()
   let raw = $state<RawInput | null>(null)
   let fps = $state<number | null>(null)
@@ -101,7 +113,7 @@
         aspect: window.screen.width / window.screen.height,
         playerFov: fovEditable ? parsePositive(form.fov) : null,
       })
-      onStart({ kind, style, dpi, view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
+      onStart({ kind, style, dpi, inputDpi: dpi * (calibration ?? 1), view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
     } catch (e) {
       startError = e instanceof Error ? e.message : String(e)
     }
@@ -290,6 +302,10 @@
         </span>
       </li>
     </ul>
+
+    {#if finePointer && lockSupported}
+      <Calibration {dpi} applied={calibration} onApply={applyCalibration} />
+    {/if}
 
     {#if !finePointer}
       <div class="tip" role="note">

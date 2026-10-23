@@ -70,6 +70,11 @@ export type TestKind = 'full' | 'flick' | 'tracking'
 /** Everything the test needs, decided on the setup screen. */
 export interface StartConfig {
   kind: TestKind
+  /**
+   * Counts per inch as this browser reports them (DPI × calibration). Used to
+   * turn the camera; in-game sens is converted with `dpi`.
+   */
+  inputDpi: number
   /** How the player's game mostly asks them to aim; weights the full test. */
   style: AimStyle
   dpi: number
