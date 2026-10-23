@@ -89,7 +89,7 @@
         <input type="checkbox" bind:checked={blind} />
         Blind: hide which is which until I choose
       </label>
-      <button type="button" class="btn" onclick={() => onStart(pair[0], pair[1], blind)}>
+      <button type="button" class="btn btn-primary" onclick={() => onStart(pair[0], pair[1], blind)}>
         {outcome ? 'Compare again' : 'Start A/B test'}
       </button>
     </div>

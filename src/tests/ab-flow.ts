@@ -4,7 +4,7 @@
  * revealed after the pick. Hits and time per option are recorded as context,
  * but the player's own choice is the result.
  *
- * Phases: playing → paused (Esc) → done (after a choice).
+ * Phases: ready (intro panel) → playing ⇄ paused (Esc) → done (after a choice).
  */
 
 export type AbChoice = 0 | 1 | 'same'
@@ -27,7 +27,7 @@ export interface AbState {
   readonly options: readonly [AbOption, AbOption]
   readonly blind: boolean
   readonly active: 0 | 1
-  readonly phase: 'playing' | 'paused' | 'done'
+  readonly phase: 'ready' | 'playing' | 'paused' | 'done'
   readonly stats: readonly [AbStats, AbStats]
   readonly switches: number
   readonly choice: AbChoice | null
@@ -57,7 +57,7 @@ export function createAbTest(config: AbConfig): AbState {
     options,
     blind: config.blind,
     active: 0,
-    phase: 'playing',
+    phase: 'ready',
     stats: [emptyStats(), emptyStats()],
     switches: 0,
     choice: null,
@@ -68,6 +68,11 @@ function updateStats(state: AbState, change: (s: AbStats) => AbStats): AbState {
   const stats: [AbStats, AbStats] = [state.stats[0], state.stats[1]]
   stats[state.active] = change(stats[state.active])
   return { ...state, stats }
+}
+
+/** Leaves the intro panel and starts aiming. */
+export function start(state: AbState): AbState {
+  return state.phase === 'ready' ? { ...state, phase: 'playing' } : state
 }
 
 /** Switches to the other option. */

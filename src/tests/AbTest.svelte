@@ -36,6 +36,7 @@
     pause,
     resume,
     shoot,
+    start,
     tick,
     toggle,
     type AbChoice,
@@ -86,7 +87,12 @@
         scene.rotate(-dx * k, -dy * k)
       },
       onClick() {
-        if (!scene || ab.phase !== 'playing') return
+        if (!scene) return
+        if (ab.phase === 'ready') {
+          ab = start(ab)
+          return
+        }
+        if (ab.phase !== 'playing') return
         const hit = hitIndex(field, clock, scene.direction())
         ab = shoot(ab, hit >= 0)
         if (hit >= 0) field = respawn(field, hit, Math.random, config.view, clock)
@@ -172,22 +178,36 @@
   <canvas bind:this={canvas}></canvas>
   <div class="crosshair" aria-hidden="true"></div>
 
-  <div class="hud">
-    <p class="active num" class:flash>{config.blind ? LABELS[ab.active] : optionText(ab.active)}</p>
-    <p class="keys small">Space: switch · Esc: choose</p>
-  </div>
-  <p class="times num small">
-    A {seconds(ab.stats[0].timeMs)} · B {seconds(ab.stats[1].timeMs)}
-  </p>
+  {#if ab.phase === 'playing'}
+    <div class="hud">
+      <p class="active num" class:flash>{config.blind ? `Option ${LABELS[ab.active]}` : optionText(ab.active)}</p>
+      <p class="keys"><kbd>Space</kbd> switch A / B · <kbd>Esc</kbd> choose</p>
+      <p class="progress num" class:ready={canChoose(ab)}>
+        A {seconds(ab.stats[0].timeMs)} · B {seconds(ab.stats[1].timeMs)} ·
+        {canChoose(ab) ? 'Both tried: press Esc whenever you are ready to choose' : `Try each for ${MIN_TRY_MS / 1000} s`}
+      </p>
+    </div>
+  {/if}
 
-  {#if ab.phase === 'playing' && !locked}
+  {#if ab.phase === 'ready'}
     <div class="panel" role="status">
       <h2>Compare by feel</h2>
-      <p class="muted">
-        Aim at the yellow targets, some still and some moving. Press <kbd>Space</kbd> to switch between A and B as often as
-        you like. Press <kbd>Esc</kbd> when you know which feels better.
-      </p>
-      <button class="btn btn-primary" onclick={lockMouse}>Lock mouse and start</button>
+      <ol class="steps">
+        <li>Aim at the yellow targets, some still and some moving. Click to shoot.</li>
+        <li>Press <kbd>Space</kbd> to switch between <strong>A</strong> and <strong>B</strong>, as often as you like.</li>
+        <li>
+          Once you have tried each for at least {MIN_TRY_MS / 1000} seconds, press <kbd>Esc</kbd> and choose the one that
+          felt better. There is no time limit.
+        </li>
+      </ol>
+      {#if config.blind}
+        <p class="muted small">Blind mode: you will see which is which after you choose.</p>
+      {/if}
+      {#if locked}
+        <p class="go">Click to start</p>
+      {:else}
+        <button class="btn btn-primary" onclick={lockMouse}>Lock mouse and start</button>
+      {/if}
       {#if lockError}<p class="form-error">{lockError}</p>{/if}
     </div>
   {:else if ab.phase === 'paused'}
@@ -245,7 +265,7 @@
     pointer-events: none;
   }
   .active {
-    font-size: 1.5rem;
+    font-size: 2rem;
     font-weight: var(--weight-bold);
     color: var(--color-accent);
     transition: transform 150ms var(--ease-out);
@@ -255,14 +275,27 @@
     transform-origin: left center;
   }
   .keys {
+    margin-top: 0.25rem;
+    font-size: 1.05rem;
+    color: var(--color-text);
+  }
+  .progress {
+    margin-top: 0.15rem;
+    font-size: 0.925rem;
     color: var(--color-text-muted);
   }
-  .times {
-    position: absolute;
-    top: 12px;
-    right: 16px;
-    color: var(--color-text-muted);
-    pointer-events: none;
+  .progress.ready {
+    color: var(--color-accent);
+  }
+  .steps {
+    display: grid;
+    gap: 0.4rem;
+    margin: 0;
+    padding-left: 1.25rem;
+  }
+  .go {
+    color: var(--color-accent);
+    font-weight: var(--weight-bold);
   }
   .panel {
     position: absolute;

@@ -10,6 +10,7 @@ import {
   pause,
   resume,
   shoot,
+  start,
   tick,
   toggle,
   type AbState,
@@ -17,6 +18,9 @@ import {
 
 const current = { cm360: 42.9, name: 'Current' }
 const recommended = { cm360: 39.6, name: 'Recommended' }
+
+/** Creates a test and leaves the intro panel. */
+const begin = (config: Parameters<typeof createAbTest>[0]): AbState => start(createAbTest(config))
 
 /** Plays `ms` of time in 100 ms frames on the active option. */
 function play(s: AbState, ms: number): AbState {
@@ -26,7 +30,7 @@ function play(s: AbState, ms: number): AbState {
 
 describe('A/B test', () => {
   it('keeps the given order when not blind', () => {
-    const s = createAbTest({ first: current, second: recommended, blind: false })
+    const s = begin({ first: current, second: recommended, blind: false })
     expect(s.options).toEqual([current, recommended])
     expect(activeCm360(s)).toBe(42.9)
   })
@@ -41,7 +45,7 @@ describe('A/B test', () => {
   })
 
   it('switches the active option and counts switches', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: false })
+    let s = begin({ first: current, second: recommended, blind: false })
     s = toggle(s)
     expect(s.active).toBe(1)
     expect(activeCm360(s)).toBe(39.6)
@@ -51,7 +55,7 @@ describe('A/B test', () => {
   })
 
   it('records time, shots and hits per option', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: false })
+    let s = begin({ first: current, second: recommended, blind: false })
     s = play(s, 1000)
     s = shoot(shoot(s, true), false)
     s = toggle(s)
@@ -62,7 +66,7 @@ describe('A/B test', () => {
   })
 
   it('does not count long frames or paused time', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: false })
+    let s = begin({ first: current, second: recommended, blind: false })
     s = tick(s, 5000)
     expect(s.stats[0].timeMs).toBe(250)
     s = pause(s)
@@ -75,7 +79,7 @@ describe('A/B test', () => {
   })
 
   it('needs both options tried before a choice counts', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: false })
+    let s = begin({ first: current, second: recommended, blind: false })
     s = play(s, MIN_TRY_MS)
     expect(canChoose(s)).toBe(false)
     expect(choose(pause(s), 1).phase).toBe('paused')
@@ -87,7 +91,7 @@ describe('A/B test', () => {
   })
 
   it('reveals the real option behind a blind label', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: true, rng: () => 0.1 })
+    let s = begin({ first: current, second: recommended, blind: true, rng: () => 0.1 })
     expect(s.options[0]).toEqual(recommended) // swapped
     s = play(toggle(play(s, MIN_TRY_MS)), MIN_TRY_MS)
     const o = outcome(choose(s, 0))!
@@ -96,7 +100,7 @@ describe('A/B test', () => {
   })
 
   it('accepts "no difference"', () => {
-    let s = createAbTest({ first: current, second: recommended, blind: false })
+    let s = begin({ first: current, second: recommended, blind: false })
     s = play(toggle(play(s, MIN_TRY_MS)), MIN_TRY_MS)
     const o = outcome(choose(s, 'same'))!
     expect(o.choice).toBe('same')
@@ -104,7 +108,19 @@ describe('A/B test', () => {
   })
 
   it('has no outcome before a choice', () => {
-    expect(outcome(createAbTest({ first: current, second: recommended, blind: false }))).toBeNull()
+    expect(outcome(begin({ first: current, second: recommended, blind: false }))).toBeNull()
+  })
+
+  it('starts on the intro panel and ignores input there', () => {
+    let s = createAbTest({ first: current, second: recommended, blind: false })
+    expect(s.phase).toBe('ready')
+    s = shoot(toggle(tick(s, 1000)), true)
+    expect(s.stats[0]).toEqual({ timeMs: 0, shots: 0, hits: 0 })
+    expect(s.active).toBe(0)
+    expect(pause(s).phase).toBe('ready')
+    s = start(s)
+    expect(s.phase).toBe('playing')
+    expect(start(s)).toBe(s)
   })
 
   it('rejects invalid distances', () => {
