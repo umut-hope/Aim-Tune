@@ -66,3 +66,10 @@
   color: var(--color-accent);
   font-weight: var(--weight-bold);
 }
+.test-part {
+  color: var(--color-accent);
+  font-size: 0.8rem;
+  font-weight: var(--weight-bold);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}

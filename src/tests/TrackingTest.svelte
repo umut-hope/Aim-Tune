@@ -34,7 +34,7 @@
   let { config, onDone, onQuit }: Props = $props()
 
   // svelte-ignore state_referenced_locally
-  let flow = $state.raw<TrackingFlowState>(createTrackingFlow({ view: config.view, search: { initial: config.initial } }))
+  let flow = $state.raw<TrackingFlowState>(createTrackingFlow({ view: config.view, search: { ...config.search, initial: config.initial } }))
   let now = $state(0)
   let raw = $state<RawInput>('unknown')
   let fps = $state(0)
@@ -155,6 +155,7 @@
 
   {#if flow.phase === 'ready'}
     <div class="test-panel" role="status">
+      {#if config.part}<p class="test-part">{config.part}</p>{/if}
       <h2>{flow.block?.kind === 'warmup' ? 'Warm-up' : `Round ${info.round} of ${info.rounds}`}</h2>
       {#if flow.block?.kind === 'warmup'}
         <p>A couple of practice runs, not scored.</p>

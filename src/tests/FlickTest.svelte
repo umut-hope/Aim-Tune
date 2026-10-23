@@ -3,7 +3,7 @@
   between blocks. Loaded on demand so three.js is not part of the first page.
 -->
 <script lang="ts" module>
-  import type { Range } from '../core/search'
+  import type { Range, SearchOptions } from '../core/search'
   import type { DistanceUnit } from '../core/units'
   import type { ResolvedView } from '../core/view'
 
@@ -12,6 +12,10 @@
     view: ResolvedView
     initial: Range
     unit: DistanceUnit
+    /** Search settings for this run (rounds, block size); defaults if absent. */
+    search?: SearchOptions
+    /** Shown above panel titles in a multi-part test, e.g. "Part 1 of 2 · Flicks". */
+    part?: string
   }
 </script>
 
@@ -48,7 +52,7 @@
 
   // svelte-ignore state_referenced_locally
   let flow = $state.raw<FlickFlowState>(
-    createFlickFlow({ search: { initial: config.initial }, targets: { view: config.view } }),
+    createFlickFlow({ search: { ...config.search, initial: config.initial }, targets: { view: config.view } }),
   )
   let raw = $state<RawInput>('unknown')
   let fps = $state(0)
@@ -173,6 +177,7 @@
 
   {#if flow.phase === 'ready'}
     <div class="test-panel" role="status">
+      {#if config.part}<p class="test-part">{config.part}</p>{/if}
       <h2>{flow.block?.kind === 'warmup' ? 'Warm-up' : `Round ${info.round} of ${info.rounds}`}</h2>
       {#if flow.block?.kind === 'warmup'}
         <p>A few practice shots, not scored.</p>
