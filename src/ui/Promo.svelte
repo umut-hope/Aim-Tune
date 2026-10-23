@@ -5,9 +5,11 @@
 -->
 <script lang="ts">
   import promo from '../promo.json'
+  import { i18n } from './lang.svelte'
   import { dismissPromo, isPromoDismissed } from './prefs'
 
   let visible = $state(!isPromoDismissed())
+  const text = $derived(promo[i18n.lang])
 
   function close() {
     dismissPromo(promo.dismissDays)
@@ -22,7 +24,7 @@
       href={promo.href}
       target="_blank"
       rel="noopener"
-      aria-label="{promo.label}: {promo.text} (opens in a new tab)"
+      aria-label={i18n.t.promo.aria(text.label, text.text)}
     >
       <svg class="promo-icon" viewBox="0 0 20 20" aria-hidden="true">
         <path
@@ -35,12 +37,12 @@
         />
       </svg>
       <span class="promo-text">
-        <span class="promo-label">{promo.label} ·</span>
-        {promo.text}
+        <span class="promo-label">{text.label} ·</span>
+        {text.text}
         <span aria-hidden="true">→</span>
       </span>
     </a>
-    <button type="button" class="promo-close" onclick={close} aria-label="Hide this for {promo.dismissDays} days">
+    <button type="button" class="promo-close" onclick={close} aria-label={i18n.t.promo.hide(promo.dismissDays)}>
       <svg viewBox="0 0 16 16" aria-hidden="true">
         <path d="M4 4l8 8M12 4l-8 8" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
       </svg>
@@ -52,7 +54,6 @@
   .promo {
     display: flex;
     align-items: center;
-    margin-left: auto;
     background: var(--color-bg);
     border: 1px dashed var(--color-border);
     border-radius: 999px;

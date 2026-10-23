@@ -1,5 +1,7 @@
-<!-- Site header: logo mark, wordmark, main nav and the yawmatch promo slot. -->
+<!-- Site header: logo mark, wordmark, main nav, language switch and the yawmatch promo slot. -->
 <script lang="ts">
+  import { LANGS } from './i18n'
+  import { i18n } from './lang.svelte'
   import Promo from './Promo.svelte'
 
   interface Props {
@@ -7,6 +9,9 @@
   }
 
   let { route }: Props = $props()
+  const t = $derived(i18n.t.header)
+  /** Each language is named in itself, so it can be found whichever one is active. */
+  const NAMES = { en: 'English', tr: 'Türkçe' } as const
 </script>
 
 <header class="site-header">
@@ -14,10 +19,17 @@
     <span class="brand-mark" aria-hidden="true"></span>
     <span class="brand-word">aimtune</span>
   </a>
-  <nav class="site-nav" aria-label="Main">
-    <a href="#/" aria-current={route === 'test' ? 'page' : undefined}>Test</a>
-    <a href="#/how" aria-current={route === 'how' ? 'page' : undefined}>How it works</a>
+  <nav class="site-nav" aria-label={t.nav}>
+    <a href="#/" aria-current={route === 'test' ? 'page' : undefined}>{t.test}</a>
+    <a href="#/how" aria-current={route === 'how' ? 'page' : undefined}>{t.how}</a>
   </nav>
+  <div class="lang" role="group" aria-label={t.language}>
+    {#each LANGS as l (l)}
+      <button type="button" lang={l} aria-label={NAMES[l]} aria-pressed={i18n.lang === l} onclick={() => i18n.set(l)}>
+        {l.toUpperCase()}
+      </button>
+    {/each}
+  </div>
   <Promo />
 </header>
 
@@ -75,15 +87,51 @@
     border-radius: 0;
   }
 
+  .lang {
+    display: flex;
+    margin-left: auto;
+    padding: 2px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+  }
+  .lang button {
+    min-width: 40px;
+    min-height: calc(var(--touch-target) - 6px);
+    padding: 0 0.4rem;
+    color: var(--color-text-muted);
+    background: none;
+    border: 0;
+    border-radius: calc(var(--radius-control) - 3px);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    font-weight: var(--weight-medium);
+    cursor: pointer;
+  }
+  .lang button:hover {
+    color: var(--color-text);
+  }
+  .lang button[aria-pressed='true'] {
+    color: var(--color-on-accent);
+    background: var(--color-accent);
+  }
+
   @media (max-width: 600px) {
     .site-header {
-      gap: 0.5rem;
+      gap: 0.4rem;
     }
     .brand-word {
       display: none;
     }
     .site-nav a {
-      padding: 0 0.5rem;
+      padding: 0 0.4rem;
+      white-space: nowrap;
+    }
+    .site-nav {
+      gap: 0;
+    }
+    .lang button {
+      min-width: 32px;
+      padding: 0;
     }
   }
 </style>
