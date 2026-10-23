@@ -48,6 +48,20 @@
   </section>
 
   <section>
+    <h2>The tracking test</h2>
+    <p>
+      Some aim is not a flick but a chase. In the tracking test a target sits in the middle; rest your crosshair on it and
+      it starts moving along a smooth, changing path for three seconds. Every frame the test measures how far you are from
+      it, and whether you are ahead of it (the sens carries you too far) or behind it (too slow).
+    </p>
+    <p>
+      Tracking is more forgiving of sens than flicking: close distances score almost the same, and reaction time makes
+      everyone trail a little. So rounds are decided by score alone, and a round that cannot tell two distances apart
+      leaves the range as it is. Expect a wider range than from the flick test; many players settle between the two.
+    </p>
+  </section>
+
+  <section>
     <h2>Compare by feel</h2>
     <p>
       Numbers are not everything. From the results you can start an A/B test: aim freely at still and moving targets

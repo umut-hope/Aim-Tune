@@ -15,7 +15,7 @@
   import { loadProfile } from './ui/profile'
   import Results, { type ResultData } from './ui/Results.svelte'
   import Setup from './ui/Setup.svelte'
-  import { DEFAULT_FORM, prefillForm, type SetupForm, type StartConfig } from './ui/setup'
+  import { DEFAULT_FORM, prefillForm, type SetupForm, type StartConfig, type TestKind } from './ui/setup'
 
   type Route = 'test' | 'how'
   type Screen = 'setup' | 'test' | 'results' | 'ab'
@@ -29,6 +29,7 @@
   let games = $state.raw<Game[]>([])
   let gamesError = $state<string | null>(null)
   let form = $state<SetupForm>({ ...DEFAULT_FORM })
+  let kind = $state<TestKind>('flick')
 
   // A shared result link opens straight on the results screen.
   const shared = parseResultParams(location.search)
@@ -41,6 +42,7 @@
           gameId: shared.game ?? null,
           dpi: shared.dpi ?? null,
           edge: shared.edge ?? null,
+          kind: shared.test ?? 'flick',
           rounds: null,
         }
       : null,
@@ -48,26 +50,35 @@
 
   let startConfig = $state.raw<StartConfig | null>(null)
   let testRun = $state(0)
-  let FlickTest = $state.raw<Component<{
+  type TestComponent = Component<{
     config: FlickTestConfig
     onDone: (r: SearchResult) => void
     onQuit: () => void
-  }> | null>(null)
+  }>
+  let tests = $state.raw<Partial<Record<TestKind, TestComponent>>>({})
   let loadError = $state<string | null>(null)
 
-  /** The test (with three.js) is a separate chunk, fetched ahead of time from the setup screen. */
-  let testModule: Promise<void> | null = null
-  function loadTest(): Promise<void> {
-    testModule ??= import('./tests/FlickTest.svelte')
+  /**
+   * The tests (with three.js) are separate chunks, fetched ahead of time from
+   * the setup screen. Both share the three.js chunk, so the second is small.
+   */
+  const testModules: Partial<Record<TestKind, Promise<void>>> = {}
+  function loadTest(which: TestKind): Promise<void> {
+    testModules[which] ??= (which === 'flick' ? import('./tests/FlickTest.svelte') : import('./tests/TrackingTest.svelte'))
       .then((m) => {
-        FlickTest = m.default
+        tests = { ...tests, [which]: m.default as TestComponent }
       })
       .catch((e: unknown) => {
-        testModule = null
+        delete testModules[which]
         loadError = e instanceof Error ? e.message : String(e)
       })
-    return testModule
+    return testModules[which]
   }
+  const preloadTests = () => {
+    void loadTest('flick')
+    void loadTest('tracking')
+  }
+  const ActiveTest = $derived(startConfig ? (tests[startConfig.kind] ?? null) : null)
 
   // A/B feel test, also a separate chunk; fetched while the results are on screen.
   let AbTest = $state.raw<Component<{
@@ -129,8 +140,8 @@
   async function start(config: StartConfig) {
     startConfig = config
     loadError = null
-    await loadTest()
-    if (FlickTest) {
+    await loadTest(config.kind)
+    if (tests[config.kind]) {
       testRun++
       screen = 'test'
     }
@@ -145,6 +156,7 @@
       gameId: config?.gameId ?? null,
       dpi: config?.dpi ?? null,
       edge: r.edge,
+      kind: config?.kind ?? 'flick',
       rounds: r.rounds,
     }
     screen = 'results'
@@ -156,6 +168,7 @@
       ...(config?.gameId ? { game: config.gameId } : {}),
       ...(config ? { dpi: config.dpi } : {}),
       ...(r.edge ? { edge: r.edge } : {}),
+      ...(config ? { test: config.kind } : {}),
     })
     history.replaceState(null, '', `${import.meta.env.BASE_URL}${q}#/`)
     window.scrollTo(0, 0)
@@ -211,10 +224,10 @@
   )
 </script>
 
-{#if screen === 'test' && route === 'test' && FlickTest && testConfig}
+{#if screen === 'test' && route === 'test' && ActiveTest && testConfig}
   <!-- Header, promo and footer are hidden while a test runs. -->
   {#key testRun}
-    <FlickTest config={testConfig} onDone={done} onQuit={newTest} />
+    <ActiveTest config={testConfig} onDone={done} onQuit={newTest} />
   {/key}
 {:else if screen === 'ab' && route === 'test' && AbTest && abConfig}
   {#key abRun}
@@ -240,7 +253,7 @@
         <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
       {/if}
     {:else}
-      <Setup {games} {gamesError} bind:form {unit} onUnitChange={setUnit} onStart={start} preload={loadTest} />
+      <Setup {games} {gamesError} bind:form bind:kind {unit} onUnitChange={setUnit} onStart={start} preload={preloadTests} />
       {#if loadError}
         <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
       {/if}

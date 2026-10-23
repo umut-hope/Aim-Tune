@@ -12,6 +12,8 @@
     gameId: string | null
     dpi: number | null
     edge: Side | null
+    /** Which test produced the result. */
+    kind: 'flick' | 'tracking'
     /** Round details; null when opened from a shared link. */
     rounds: readonly RoundResult[] | null
   }
@@ -79,6 +81,7 @@
       ...(result.gameId !== null ? { game: result.gameId } : {}),
       ...(result.dpi !== null ? { dpi: result.dpi } : {}),
       ...(result.edge !== null ? { edge: result.edge } : {}),
+      test: result.kind,
     })
     return `${location.origin}${import.meta.env.BASE_URL}${q}`
   })
@@ -97,7 +100,9 @@
 </script>
 
 <section class="result-hero">
-  <p class="eyebrow">{result.rounds ? 'Your result' : 'Shared result'}</p>
+  <p class="eyebrow">
+    {result.rounds ? 'Your' : 'Shared'} {result.kind === 'tracking' ? 'tracking' : 'flick'} result
+  </p>
   <h1>
     Your sweet spot:
     <span class="value">{dist(result.range.lo)}–{dist(result.range.hi)} {unitWord}</span>
@@ -169,7 +174,7 @@
 
     {#if result.rounds && result.rounds.length > 0}
       <div class="card">
-        <BiasChart rounds={result.rounds} {unit} />
+        <BiasChart rounds={result.rounds} {unit} kind={result.kind} />
       </div>
     {/if}
   </div>
@@ -178,8 +183,13 @@
     <div class="tip" role="note">
       <p class="tip-title">A short browser test, not the final word</p>
       <p>
-        There is no single correct sensitivity. This range is where you were most consistent in a few minutes of flicks,
-        in a browser, at this frame rate. Try the middle of it in game for a few sessions before deciding.
+        There is no single correct sensitivity. This range is where you were most consistent in a few minutes of
+        {result.kind === 'tracking' ? 'tracking' : 'flicks'}, in a browser, at this frame rate. Try the middle of it in
+        game for a few sessions before deciding.
+        {#if result.kind === 'tracking'}
+          Tracking preference is usually broader than flicking, so this range is wider; the flick test narrows it
+          further.
+        {/if}
       </p>
     </div>
 

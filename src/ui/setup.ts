@@ -64,8 +64,11 @@ export function isPlausibleCm360(cm: number): boolean {
   return cm >= 5 && cm <= 200
 }
 
+export type TestKind = 'flick' | 'tracking'
+
 /** Everything the test needs, decided on the setup screen. */
 export interface StartConfig {
+  kind: TestKind
   dpi: number
   view: ResolvedView
   initial: Range

@@ -58,6 +58,8 @@ export interface ResultParams {
   dpi?: number
   /** Set when the best distance may lie beyond the tested range. */
   edge?: 'low' | 'high'
+  /** Which test produced it. Flick when absent. */
+  test?: 'flick' | 'tracking'
 }
 
 /** Query string for a shareable result link. */
@@ -69,6 +71,7 @@ export function resultQuery(r: ResultParams): string {
   if (r.game !== undefined) params.set('game', r.game)
   if (r.dpi !== undefined) params.set('dpi', formatNumber(r.dpi, 0))
   if (r.edge !== undefined) params.set('edge', r.edge)
+  if (r.test === 'tracking') params.set('test', 'tracking')
   return `?${params.toString()}`
 }
 
@@ -88,6 +91,7 @@ export function parseResultParams(search: string): ResultParams | null {
   if (game) out.game = game
   if (dpi !== null) out.dpi = dpi
   if (edge === 'low' || edge === 'high') out.edge = edge
+  if (params.get('test') === 'tracking') out.test = 'tracking'
   return out
 }
 

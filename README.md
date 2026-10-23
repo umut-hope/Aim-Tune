@@ -16,9 +16,13 @@ No install, no account. Open it on a computer with a mouse; the test takes about
 
 ## What it does
 
-You pick your game, sens and DPI. In a simple 3D room you flick from a white dot to yellow targets and click
-once per target. Each round tests two distances per 360°, keeps the half of the range that scored better,
-and narrows it down. At the end you get:
+You pick your game, sens and DPI, and one of two tests:
+
+- **Flick:** in a simple 3D room you flick from a white dot to yellow targets and click once per target.
+- **Tracking:** you keep the crosshair on a target that moves along a smooth, changing path.
+
+Each round tests two distances per 360°, keeps the part of the range that scored better, and narrows it down.
+At the end you get:
 
 - the range where you were most consistent, in cm/360 (or in/360) and in your game's sens
 - your current setting on the same ruler, so you can see how far off it is
@@ -44,7 +48,10 @@ flicks are not a real match. Treat the result as a starting point.
 - When two distances score about the same, systematic overshoot (sens too high) or undershoot (sens too low)
   decides the round.
 - The final range is never narrower than ±4% and widens when your flicks were inconsistent.
-- The search procedure is checked against simulated players with a known preference before it is trusted.
+- Tracking splits the miss into **ahead of** and **behind** the moving target. Reaction time makes everyone
+  trail a little and tracking scores change slowly with sens, so tracking rounds are decided by score alone
+  and undecided rounds keep the range: tracking results are honestly wider than flick results.
+- Both procedures are checked against simulated players (flickers and trackers) before they are trusted.
 
 ## Links
 

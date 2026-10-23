@@ -53,6 +53,14 @@ describe('result links', () => {
     expect(parseResultParams(q)).toEqual({ lo: 38, hi: 41.3, current: 42.9, game: 'cs2', dpi: 400, edge: 'high' })
   })
 
+  it('marks tracking results and leaves flick as the default', () => {
+    const q = resultQuery({ lo: 30, hi: 40, test: 'tracking' })
+    expect(q).toBe('?lo=30&hi=40&test=tracking')
+    expect(parseResultParams(q)?.test).toBe('tracking')
+    expect(resultQuery({ lo: 30, hi: 40, test: 'flick' })).toBe('?lo=30&hi=40')
+    expect(parseResultParams('?lo=30&hi=40&test=other')?.test).toBeUndefined()
+  })
+
   it('needs a valid range', () => {
     expect(parseResultParams('?lo=40&hi=38')).toBeNull()
     expect(parseResultParams('?lo=40')).toBeNull()

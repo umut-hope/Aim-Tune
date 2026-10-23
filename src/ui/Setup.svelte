@@ -13,12 +13,13 @@
   import HelpTip from './HelpTip.svelte'
   import { formatNumber, parsePositive } from './links'
   import Ruler from './Ruler.svelte'
-  import { MANUAL_GAME, currentCm360, isPlausibleCm360, type SetupForm, type StartConfig } from './setup'
+  import { MANUAL_GAME, currentCm360, isPlausibleCm360, type SetupForm, type StartConfig, type TestKind } from './setup'
 
   interface Props {
     games: readonly Game[]
     gamesError: string | null
     form: SetupForm
+    kind: TestKind
     unit: DistanceUnit
     onUnitChange: (unit: DistanceUnit) => void
     onStart: (config: StartConfig) => void
@@ -26,9 +27,10 @@
     preload?: () => void
   }
 
-  let { games, gamesError, form = $bindable(), unit, onUnitChange, onStart, preload }: Props = $props()
+  let { games, gamesError, form = $bindable(), kind = $bindable(), unit, onUnitChange, onStart, preload }: Props = $props()
 
   const HELP = {
+    kind: 'Flick: snap to targets that appear, one click each. Tracking: keep the crosshair on a moving target. Many players prefer a slightly different sens for each; tracking results are usually broader.',
     game: "Your main game. Sets the field of view so targets appear where they would in that game, and converts the result to its sens.",
     sens: 'The mouse sensitivity in your game settings, as the game shows it.',
     dpi: 'Counts per inch of your mouse, set in its own software (often 400, 800 or 1600). Not the in-game sensitivity.',
@@ -73,7 +75,7 @@
         aspect: window.screen.width / window.screen.height,
         playerFov: fovEditable ? parsePositive(form.fov) : null,
       })
-      onStart({ dpi, view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
+      onStart({ kind, dpi, view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
     } catch (e) {
       startError = e instanceof Error ? e.message : String(e)
     }
@@ -85,13 +87,30 @@
 <section class="hero">
   <h1>Find the sens your hand actually likes.</h1>
   <p class="hero-sub">
-    A short flick test in your browser, about 2–3 minutes. It measures how you aim and suggests a range, not a single
-    magic number. You need a mouse.
+    A short flick or tracking test in your browser, about 3 minutes. It measures how you aim and suggests a range, not
+    a single magic number. You need a mouse.
   </p>
 </section>
 
 <form class="workspace" onsubmit={start}>
   <div class="card form-card">
+    <div class="field">
+      <div class="field-head">
+        <span class="kind-label" id="kind-label">Test</span>
+        <HelpTip label="the test types" text={HELP.kind} />
+      </div>
+      <div class="kinds" role="group" aria-labelledby="kind-label">
+        <button type="button" aria-pressed={kind === 'flick'} onclick={() => (kind = 'flick')}>
+          <span class="kind-name">Flick</span>
+          <span class="kind-desc">Snap to targets</span>
+        </button>
+        <button type="button" aria-pressed={kind === 'tracking'} onclick={() => (kind = 'tracking')}>
+          <span class="kind-name">Tracking</span>
+          <span class="kind-desc">Follow a moving target</span>
+        </button>
+      </div>
+    </div>
+
     <div class="field">
       <div class="field-head">
         <label for="game">Game</label>
@@ -265,6 +284,7 @@
     grid-template-columns: 1fr 1fr;
     gap: 0.75rem;
   }
+  .kind-label,
   .unit-label {
     font-size: 0.875rem;
     font-weight: var(--weight-medium);
@@ -272,6 +292,40 @@
   }
   .units {
     width: max-content;
+  }
+  .kinds {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.5rem;
+  }
+  .kinds button {
+    display: grid;
+    gap: 0.1rem;
+    min-height: 56px;
+    padding: 0.5rem 0.75rem;
+    text-align: left;
+    color: var(--color-text);
+    background: var(--color-bg);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-control);
+    cursor: pointer;
+  }
+  .kinds button:hover {
+    border-color: var(--color-text-muted);
+  }
+  .kinds button[aria-pressed='true'] {
+    border-color: var(--color-accent);
+    box-shadow: inset 0 0 0 1px var(--color-accent);
+  }
+  .kind-name {
+    font-weight: var(--weight-bold);
+  }
+  .kinds button[aria-pressed='true'] .kind-name {
+    color: var(--color-accent);
+  }
+  .kind-desc {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
   }
   .side {
     display: grid;

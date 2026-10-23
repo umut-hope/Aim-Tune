@@ -11,9 +11,26 @@
   interface Props {
     rounds: readonly RoundResult[]
     unit: DistanceUnit
+    kind?: 'flick' | 'tracking'
   }
 
-  let { rounds, unit }: Props = $props()
+  let { rounds, unit, kind = 'flick' }: Props = $props()
+
+  const words = $derived(
+    kind === 'flick'
+      ? {
+          title: 'Overshoot and undershoot per round',
+          plus: 'overshoot',
+          minus: 'undershoot',
+          what: 'the average miss along the flick, relative to its size',
+        }
+      : {
+          title: 'Ahead of and behind the target per round',
+          plus: 'ahead',
+          minus: 'behind',
+          what: "the average lead or lag along the target's motion, relative to its speed",
+        },
+  )
 
   const rows = $derived(
     rounds.flatMap((r) =>
@@ -29,10 +46,10 @@
 
 <figure class="chart">
   <figcaption>
-    <span class="title">Overshoot and undershoot per round</span>
+    <span class="title">{words.title}</span>
     <span class="legend small">
-      <span class="key under">← undershoot (sens too low)</span>
-      <span class="key over">overshoot (sens too high) →</span>
+      <span class="key under">← {words.minus} (sens too low)</span>
+      <span class="key over">{words.plus} (sens too high) →</span>
     </span>
   </figcaption>
   <table>
@@ -58,7 +75,7 @@
       {/each}
     </tbody>
   </table>
-  <p class="muted small">Rows in bold scored better in their round. Values are the average miss along the flick, relative to its size.</p>
+  <p class="muted small">Rows in bold scored better in their round. Values are {words.what}.</p>
 </figure>
 
 <style>
