@@ -69,8 +69,9 @@ describe('result links', () => {
       style: 'both',
       flick: { lo: 40.4, hi: 43.3 },
       tracking: { lo: 28, hi: 35 },
+      appliedTracking: 0.27,
     })
-    expect(q).toBe('?lo=36&hi=40&test=full&style=both&fl=40.4&fh=43.3&tl=28&th=35')
+    expect(q).toBe('?lo=36&hi=40&test=full&style=both&fl=40.4&fh=43.3&tl=28&th=35&tw=0.27')
     expect(parseResultParams(q)).toEqual({
       lo: 36,
       hi: 40,
@@ -78,8 +79,10 @@ describe('result links', () => {
       style: 'both',
       flick: { lo: 40.4, hi: 43.3 },
       tracking: { lo: 28, hi: 35 },
+      appliedTracking: 0.27,
     })
-    expect(parseResultParams('?lo=36&hi=40&test=full&style=odd&fl=5&fh=4')).toEqual({ lo: 36, hi: 40, test: 'full' })
+    expect(parseResultParams('?lo=36&hi=40&test=full&style=odd&fl=5&fh=4&tw=3')).toEqual({ lo: 36, hi: 40, test: 'full' })
+    expect(parseResultParams('?lo=36&hi=40&test=full&tw=0')?.appliedTracking).toBe(0)
   })
 
   it('needs a valid range', () => {

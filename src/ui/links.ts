@@ -64,6 +64,8 @@ export interface ResultParams {
   style?: 'flicks' | 'both' | 'tracking'
   flick?: { lo: number; hi: number }
   tracking?: { lo: number; hi: number }
+  /** Tracking weight actually applied, 0..1 (less than the style's when tracking could not decide). */
+  appliedTracking?: number
 }
 
 /** Query string for a shareable result link. */
@@ -86,6 +88,7 @@ export function resultQuery(r: ResultParams): string {
       params.set('tl', formatNumber(r.tracking.lo, 1))
       params.set('th', formatNumber(r.tracking.hi, 1))
     }
+    if (r.appliedTracking !== undefined) params.set('tw', formatNumber(r.appliedTracking, 2))
   }
   return `?${params.toString()}`
 }
@@ -121,6 +124,9 @@ export function parseResultParams(search: string): ResultParams | null {
     const tracking = range('tl', 'th')
     if (flick) out.flick = flick
     if (tracking) out.tracking = tracking
+    const tw = params.get('tw')
+    const twValue = tw === '0' ? 0 : parsePositive(tw)
+    if (twValue !== null && twValue <= 1) out.appliedTracking = twValue
   }
   return out
 }

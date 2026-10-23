@@ -56,7 +56,10 @@ flicks are not a real match. Treat the result as a starting point.
   trail a little and tracking scores change slowly with sens, so tracking rounds are decided by score alone
   and undecided rounds keep the range: tracking results are honestly wider than flick results.
 - The full test blends the two parts' results on a log scale rather than mixing their scores: a sens 25% off
-  costs flicks far more than tracking, so a mixed score would ignore the chosen weights.
+  costs flicks far more than tracking, so a mixed score would ignore the chosen weights. Tracking's weight is scaled
+  by the share of its rounds that were decided, so an inconclusive tracking part does not move the result.
+- Tracking runs last five seconds, ease in from rest, and leave the first half second unscored, since that part
+  mostly measures reaction time.
 - All procedures are checked against simulated players (flickers, trackers, and players whose flick and tracking
   preferences differ) before they are trusted.
 

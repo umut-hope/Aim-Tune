@@ -56,8 +56,9 @@
     <h2>The tracking test</h2>
     <p>
       Some aim is not a flick but a chase. In the tracking test a target sits in the middle; rest your crosshair on it and
-      it starts moving along a smooth, changing path for three seconds. Every frame the test measures how far you are from
-      it, and whether you are ahead of it (the sens carries you too far) or behind it (too slow).
+      it eases into motion along a smooth, changing path for five seconds. Every frame the test measures how far you are
+      from it, and whether you are ahead of it (the sens carries you too far) or behind it (too slow). The first half second
+      of each run is not scored: it mostly measures reaction time, not sens.
     </p>
     <p>
       Tracking is more forgiving of sens than flicking: close distances score almost the same, and reaction time makes
@@ -76,8 +77,13 @@
     <p>
       Why not one combined score? A sens that is a quarter off ruins flicks but only costs tracking a few percent, so
       flicks would decide every time, whatever you picked. Averaging the two results lets your choice count. Flicks keep
-      at least 35% because tracking alone measures sens less precisely. The results page shows both parts, so you can see
-      if tracking pointed somewhere else.
+      at least 35% because tracking alone measures sens less precisely.
+    </p>
+    <p>
+      Tracking also counts only as much as it could actually tell distances apart. Reaction time makes everyone trail a
+      moving target, which hides small sens differences, so a tracking round often ends undecided. If half its rounds were
+      undecided, tracking gets half its weight; if none were decided, the result rests on your flicks. The results page
+      shows the weights that were applied and says so plainly.
     </p>
   </section>
 

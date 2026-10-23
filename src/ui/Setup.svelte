@@ -56,7 +56,7 @@
   const HELP = {
     kind: 'Full test: a flick part, then a tracking part, combined into one range. Flick only: snap to targets that appear, one click each. Tracking only: keep the crosshair on a moving target. Tracking results are usually broader.',
     style:
-      'Each part finds its own best range; the result is their weighted average (on a log scale, since sens feels proportional). Flicks keep at least 35% because tracking alone measures sens less precisely. Your game is a guess at the mix: pick what matches how you actually play.',
+      'Each part finds its own best range; the result is their weighted average (on a log scale, since sens feels proportional). Flicks keep at least 35% because tracking alone measures sens less precisely, and tracking counts only as much as it could tell distances apart. Your game is a guess at the mix: pick what matches how you actually play.',
     game: "Your main game. Sets the field of view so targets appear where they would in that game, and converts the result to its sens.",
     sens: 'The mouse sensitivity in your game settings, as the game shows it.',
     dpi: 'Counts per inch of your mouse, set in its own software (often 400, 800 or 1600). Not the in-game sensitivity.',

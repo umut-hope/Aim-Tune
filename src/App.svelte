@@ -59,6 +59,11 @@
                   weights: shared.style ? STYLE_WEIGHTS[shared.style] : null,
                   flick: shared.flick,
                   tracking: shared.tracking,
+                  applied:
+                    shared.appliedTracking !== undefined
+                      ? { flick: 1 - shared.appliedTracking, tracking: shared.appliedTracking }
+                      : null,
+                  trackingDecided: null,
                   trackingRounds: null,
                 }
               : null,
@@ -208,6 +213,8 @@
           weights: blended.weights,
           flick: flickPart.range,
           tracking: r.range,
+          applied: blended.applied,
+          trackingDecided: blended.trackingDecided,
           trackingRounds: r.rounds,
         },
       }
@@ -235,7 +242,12 @@
       ...(res.edge ? { edge: res.edge } : {}),
       test: config.kind,
       ...(res.blend
-        ? { style: config.style, flick: res.blend.flick, tracking: res.blend.tracking }
+        ? {
+            style: config.style,
+            flick: res.blend.flick,
+            tracking: res.blend.tracking,
+            ...(res.blend.applied ? { appliedTracking: res.blend.applied.tracking } : {}),
+          }
         : {}),
     })
     history.replaceState(null, '', `${import.meta.env.BASE_URL}${q}#/`)

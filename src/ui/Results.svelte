@@ -13,6 +13,10 @@
     weights: SkillWeights | null
     flick: Range
     tracking: Range
+    /** Weights actually applied (tracking scaled by how much it decided). */
+    applied: SkillWeights | null
+    /** Share of tracking rounds that picked a winner; null when unknown (shared link). */
+    trackingDecided: number | null
     /** Tracking rounds; null when opened from a shared link. */
     trackingRounds: readonly RoundResult[] | null
   }
@@ -84,6 +88,7 @@
   /** Where tracking alone pointed compared with flicks (±7% counts as the same). */
   const lean = $derived.by(() => {
     if (!result.blend) return null
+    if (result.blend.applied?.tracking === 0) return 'unknown'
     const ratio = centerOf(result.blend.tracking) / centerOf(result.blend.flick)
     return ratio < 0.93 ? 'shorter' : ratio > 1.07 ? 'longer' : 'same'
   })
@@ -92,10 +97,11 @@
       ? [{ cm: result.current, label: `you · ${dist(result.current)}`, tone: 'current' as const }]
       : []),
     ...(result.blend
-      ? [
-          { cm: centerOf(result.blend.flick), label: `flicks · ${dist(centerOf(result.blend.flick))}`, tone: 'muted' as const },
-          { cm: centerOf(result.blend.tracking), label: `tracking · ${dist(centerOf(result.blend.tracking))}`, tone: 'muted' as const },
-        ]
+      ? [{ cm: centerOf(result.blend.flick), label: `flicks · ${dist(centerOf(result.blend.flick))}`, tone: 'muted' as const }]
+      : []),
+    // A tracking part that decided nothing has no centre worth showing.
+    ...(result.blend && result.blend.applied?.tracking !== 0
+      ? [{ cm: centerOf(result.blend.tracking), label: `tracking · ${dist(centerOf(result.blend.tracking))}`, tone: 'muted' as const }]
       : []),
   ])
 
@@ -121,6 +127,7 @@
             ...(result.blend.style ? { style: result.blend.style } : {}),
             flick: result.blend.flick,
             tracking: result.blend.tracking,
+            ...(result.blend.applied ? { appliedTracking: result.blend.applied.tracking } : {}),
           }
         : {}),
     })
@@ -193,14 +200,26 @@
               {:else}
                 by aim style
               {/if}
+              {#if b.applied && (!b.weights || Math.abs(b.applied.tracking - b.weights.tracking) > 0.005)}
+                <span class="applied">
+                  applied <span class="num">{Math.round(b.applied.flick * 100)}% · {Math.round(b.applied.tracking * 100)}%</span>
+                </span>
+              {/if}
             </dd>
           </div>
         </dl>
         <p class="muted small">
-          Each part found its own range; the result is their weighted average on a log scale. The tracking range is wider,
-          so more tracking weight also widens the result.
+          Each part found its own range; the result is their weighted average on a log scale. Tracking counts only as much
+          as it could tell distances apart{b.trackingDecided !== null
+            ? `: this time it decided ${Math.round(b.trackingDecided * 100)}% of its rounds`
+            : ''}.
         </p>
-        {#if lean === 'shorter'}
+        {#if lean === 'unknown'}
+          <p>
+            The tracking part could not tell the distances apart this time: reaction time hides small sens differences
+            when following a target. The result is based on your flicks.
+          </p>
+        {:else if lean === 'shorter'}
           <p>
             On its own, tracking pointed to a <strong>shorter</strong> distance (a higher sens). If tracking matters more
             in your game than you picked, lean towards the low end.
@@ -378,6 +397,11 @@
   .parts dd {
     margin: 0;
     font-weight: var(--weight-medium);
+  }
+  .applied {
+    display: block;
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
   }
   .sens-card {
     display: grid;
