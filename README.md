@@ -10,6 +10,9 @@ Find a mouse sensitivity range that fits your hand, with a short flick test in y
 
 No install, no account. Open it on a computer with a mouse; the test takes about 2–3 minutes.
 
+The site is in **English and Turkish** (Türkçe). It follows your browser language; switch with EN / TR in the
+header, or open a link with `?lang=en` or `?lang=tr`.
+
 ![Setup screen: test choice, game, sens and DPI on the left; your current distance per 360° on a ruler, browser checks and an optional mouse calibration on the right](docs/screenshots/setup.png)
 
 ![Results screen: the recommended range as a yellow band on the ruler next to your current distance, the same range in the game's sens, an A/B feel test and links to convert, save, share or give feedback](docs/screenshots/results.png)
@@ -73,6 +76,7 @@ flicks are not a real match. Treat the result as a starting point.
 ## Links
 
 - Prefill the setup: `?game=cs2&sens=1.2&dpi=800`
+- Pick the language: `?lang=tr` or `?lang=en` (wins over the saved choice and the browser language)
 - Shared results carry the numbers in the address: `?lo=38&hi=41.3&cur=42.9&game=cs2&dpi=400`
 - "Tell us if it was right" opens a prefilled GitHub issue form; nothing is sent until you submit it there.
 - Game data (yaw, FOV) is loaded at runtime from yawmatch's
@@ -81,7 +85,7 @@ flicks are not a real match. Treat the result as a starting point.
 ## Privacy
 
 Everything runs in your browser. There is no backend, no account and no analytics. Your browser's local storage
-keeps your unit choice, your last ten results (to combine runs), a mouse calibration if you made one, and, if you
+keeps your unit and language choice, your last ten results (to combine runs), a mouse calibration if you made one, and, if you
 press *Save to profile*, your game, sens and DPI (`shared:profile`, shared with yawmatch). Nothing of it leaves
 your browser; the feedback form on GitHub only shares what you submit there.
 
