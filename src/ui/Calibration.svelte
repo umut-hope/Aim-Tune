@@ -6,6 +6,7 @@
   import { onDestroy } from 'svelte'
   import { PointerLockInput } from '../scene/pointer-lock'
   import { DEFAULT_REFERENCE_CM, judgeRatio, measuredDpi, type CalibrationVerdict } from './calibration'
+  import { i18n } from './lang.svelte'
   import { formatNumber, parsePositive } from './links'
 
   interface Props {
@@ -30,6 +31,7 @@
 
   const distanceCm = $derived(parsePositive(distance))
   const pct = (ratio: number) => Math.round(Math.abs(ratio - 1) * 100)
+  const t = $derived(i18n.t.calibration)
 
   onDestroy(() => input?.dispose())
 
@@ -53,7 +55,7 @@
       await input.lock()
       phase = 'measuring'
     } catch (e) {
-      error = `Could not lock the mouse: ${e instanceof Error ? e.message : String(e)}`
+      error = i18n.t.common.lockError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -71,46 +73,40 @@
 <div class="card calibration">
   <div class="head">
     <div>
-      <p class="title">Mouse calibration <span class="muted small">(optional, 30 s)</span></p>
+      <p class="title">{t.title} <span class="muted small">{t.optional}</span></p>
       {#if applied !== null && Math.abs(applied - 1) > 0.005}
-        <p class="small">
-          Correction on: this browser reports <span class="num">{pct(applied)}%</span>
-          {applied < 1 ? 'fewer' : 'more'} counts than your DPI; the test makes up for it.
-        </p>
+        <p class="small">{@html t.correctionOnHtml(pct(applied), applied < 1)}</p>
       {:else if applied !== null}
-        <p class="small">Checked: this browser reads your mouse at the DPI you entered.</p>
+        <p class="small">{t.checked}</p>
       {:else}
-        <p class="small muted">
-          Checks that the browser reads your mouse at the DPI you entered. Worth it in Firefox or Safari, or if you are
-          not sure of your DPI.
-        </p>
+        <p class="small muted">{t.intro}</p>
       {/if}
     </div>
     {#if !open}
       <button type="button" class="btn" onclick={() => (open = true)} disabled={dpi === null}>
-        {applied !== null ? 'Redo' : 'Calibrate'}
+        {applied !== null ? t.redo : t.calibrate}
       </button>
     {/if}
   </div>
 
   {#if open}
     <ol class="steps small">
-      <li>Lay a sheet of A4 paper on your pad, long side from left to right (or anything whose length you know).</li>
-      <li>Line up the left side of your mouse with the left edge of the sheet.</li>
-      <li>Click <strong>Start</strong>, slide the mouse slowly to the right until its left side reaches the right edge, then click.</li>
+      {#each t.stepsHtml as step, i (i)}
+        <li>{@html step}</li>
+      {/each}
     </ol>
     <div class="row">
       <label class="dist">
-        <span class="small muted">Distance (cm)</span>
+        <span class="small muted">{t.distance}</span>
         <input class="num-input" type="text" inputmode="decimal" bind:value={distance} aria-invalid={distanceCm === null} />
       </label>
       <!-- The pointer is locked to this box while measuring. -->
       <div class="pad" class:active={phase === 'measuring'} bind:this={pad}>
         {#if phase === 'measuring'}
-          <span class="num">{Math.round(counts)} counts</span>
-          <span class="small">slide right, then click</span>
+          <span class="num">{t.counts(Math.round(counts))}</span>
+          <span class="small">{t.slideHint}</span>
         {:else}
-          <button type="button" class="btn btn-primary" onclick={start} disabled={distanceCm === null}>Start</button>
+          <button type="button" class="btn btn-primary" onclick={start} disabled={distanceCm === null}>{t.start}</button>
         {/if}
       </div>
     </div>
@@ -119,31 +115,23 @@
 
     {#if phase === 'result' && result}
       {#if result.verdict === 'match'}
-        <p class="ok">
-          Measured <span class="num">{formatNumber(result.measured, 0)}</span> counts per inch: matches your
-          <span class="num">{dpi}</span> DPI. No correction needed.
-        </p>
+        <p class="ok">{@html t.matchHtml(formatNumber(result.measured, 0), dpi ?? 0)}</p>
       {:else if result.verdict === 'off'}
-        <p>
-          Measured <span class="num">{formatNumber(result.measured, 0)}</span> counts per inch, about
-          <span class="num">{pct(result.ratio)}%</span> {result.ratio < 1 ? 'fewer' : 'more'} than
-          <span class="num">{dpi}</span> DPI would give. Likely causes: display scaling, Windows pointer speed or a
-          different DPI than you entered. Measure twice before using it.
-        </p>
+        <p>{@html t.offHtml(formatNumber(result.measured, 0), pct(result.ratio), result.ratio < 1, dpi ?? 0)}</p>
         <div class="row">
-          <button type="button" class="btn btn-primary" onclick={() => onApply(result!.ratio)}>Use the correction</button>
-          <button type="button" class="btn" onclick={() => (phase = 'idle')}>Measure again</button>
+          <button type="button" class="btn btn-primary" onclick={() => onApply(result!.ratio)}>{t.useCorrection}</button>
+          <button type="button" class="btn" onclick={() => (phase = 'idle')}>{t.measureAgain}</button>
         </div>
       {:else}
-        <p class="form-error">That does not look right (the mouse may have been lifted). Try again, sliding slowly.</p>
+        <p class="form-error">{t.bad}</p>
       {/if}
     {/if}
 
     <div class="row end">
       {#if applied !== null}
-        <button type="button" class="link-button" onclick={() => onApply(null)}>Remove calibration</button>
+        <button type="button" class="link-button" onclick={() => onApply(null)}>{t.remove}</button>
       {/if}
-      <button type="button" class="link-button" onclick={() => (open = false)}>Close</button>
+      <button type="button" class="link-button" onclick={() => (open = false)}>{t.close}</button>
     </div>
   {/if}
 </div>
@@ -159,6 +147,10 @@
     justify-content: space-between;
     align-items: flex-start;
     gap: 1rem;
+  }
+  .head .btn {
+    flex: none;
+    white-space: nowrap;
   }
   .title {
     font-weight: var(--weight-bold);

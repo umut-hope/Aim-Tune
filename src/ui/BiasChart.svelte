@@ -6,6 +6,7 @@
 <script lang="ts">
   import type { RoundResult } from '../core/search'
   import { fromCm, type DistanceUnit } from '../core/units'
+  import { i18n } from './lang.svelte'
   import { formatNumber } from './links'
 
   interface Props {
@@ -16,21 +17,12 @@
 
   let { rounds, unit, kind = 'flick' }: Props = $props()
 
-  const words = $derived(
-    kind === 'flick'
-      ? {
-          title: 'Overshoot and undershoot per round',
-          plus: 'overshoot',
-          minus: 'undershoot',
-          what: 'the average miss along the flick, relative to its size',
-        }
-      : {
-          title: 'Ahead of and behind the target per round',
-          plus: 'ahead',
-          minus: 'behind',
-          what: "the average lead or lag along the target's motion, relative to its speed",
-        },
-  )
+  const t = $derived(i18n.t.chart)
+  const words = $derived({
+    ...i18n.t.bias[kind],
+    title: kind === 'flick' ? t.flickTitle : t.trackingTitle,
+    what: kind === 'flick' ? t.flickWhat : t.trackingWhat,
+  })
 
   const rows = $derived(
     rounds.flatMap((r) =>
@@ -41,20 +33,20 @@
   )
   /** Scale: at least ±10%, so small biases do not look dramatic. */
   const span = $derived(Math.max(0.1, ...rows.map((r) => Math.abs(r.bias))))
-  const pct = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1)}%`
+  const pct = (x: number) => `${x >= 0 ? '+' : '−'}${i18n.t.common.percent(Math.abs(x * 100).toFixed(1))}`
 </script>
 
 <figure class="chart">
   <figcaption>
     <span class="title">{words.title}</span>
     <span class="legend small">
-      <span class="key under">← {words.minus} (sens too low)</span>
-      <span class="key over">{words.plus} (sens too high) →</span>
+      <span class="key under">← {t.tooLow(words.minus)}</span>
+      <span class="key over">{t.tooHigh(words.plus)} →</span>
     </span>
   </figcaption>
   <table>
     <thead class="sr-only">
-      <tr><th>Round</th><th>Distance</th><th>Mean error</th></tr>
+      <tr>{#each t.headers as h (h)}<th>{h}</th>{/each}</tr>
     </thead>
     <tbody>
       {#each rows as row, i (i)}
@@ -75,7 +67,7 @@
       {/each}
     </tbody>
   </table>
-  <p class="muted small">Rows in bold scored better in their round. Values are {words.what}.</p>
+  <p class="muted small">{t.note(words.what)}</p>
 </figure>
 
 <style>

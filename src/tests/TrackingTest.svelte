@@ -8,6 +8,7 @@
   import { degreesPerCountAtCm360, fromCm } from '../core/units'
   import { FlickScene } from '../scene/flick-scene'
   import { PointerLockInput, type RawInput } from '../scene/pointer-lock'
+  import { i18n } from '../ui/lang.svelte'
   import { formatNumber } from '../ui/links'
   import type { FlickTestConfig } from './FlickTest.svelte'
   import RoundSummary from './RoundSummary.svelte'
@@ -52,6 +53,7 @@
   const info = $derived(hud(flow, now))
   const unitLabel = $derived(config.unit === 'cm' ? 'cm/360' : 'in/360')
   const dist = (cm: number) => formatNumber(fromCm(cm, config.unit), 1)
+  const t = $derived(i18n.t.test)
 
   onMount(() => {
     scene = new FlickScene(canvas)
@@ -113,7 +115,7 @@
     try {
       raw = (await input?.lock()) ?? raw
     } catch (e) {
-      lockError = `Could not lock the mouse: ${e instanceof Error ? e.message : String(e)}`
+      lockError = i18n.t.common.lockError(e instanceof Error ? e.message : String(e))
     }
   }
 
@@ -139,12 +141,12 @@
 
   <div class="test-crosshair" aria-hidden="true"></div>
   {#if flow.phase === 'waiting'}
-    <p class="test-hint">Rest your crosshair on the target</p>
+    <p class="test-hint">{t.restOnTarget}</p>
   {/if}
   <div class="test-hud">
     <p class="num">
-      {#if info.warmup}Warm-up{:else}Round {info.round}/{info.rounds}{/if}
-      · Trial {info.trial}/{info.trials}
+      {#if info.warmup}{t.warmup}{:else}{t.hudRound(info.round ?? 0, info.rounds)}{/if}
+      · {t.hudTrial(info.trial, info.trials)}
       {#if info.cm360 !== null}· {dist(info.cm360)} {unitLabel}{/if}
       · {fps.toFixed(0)} fps
     </p>
@@ -156,42 +158,39 @@
   {#if flow.phase === 'ready'}
     <div class="test-panel" role="status">
       {#if config.part}<p class="test-part">{config.part}</p>{/if}
-      <h2>{flow.block?.kind === 'warmup' ? 'Warm-up' : `Round ${info.round} of ${info.rounds}`}</h2>
+      <h2>{flow.block?.kind === 'warmup' ? t.warmup : t.roundOf(info.round ?? 0, info.rounds)}</h2>
       {#if flow.block?.kind === 'warmup'}
-        <p>A couple of practice runs, not scored.</p>
+        <p>{t.warmupTracking}</p>
       {/if}
       {#if flow.block?.attempt}
-        <p>Repeating this block: the target was lost too often.</p>
+        <p>{t.repeatTracking}</p>
       {/if}
       <ol class="steps">
-        <li>Rest your crosshair on the yellow target in the middle.</li>
-        <li>After a moment it starts moving. Keep the crosshair on it for 3 seconds.</li>
-        <li>No clicking needed. Then it returns to the middle for the next run.</li>
+        {#each t.trackingSteps as step, i (i)}
+          <li>{step}</li>
+        {/each}
       </ol>
       {#if locked}
-        <p class="test-go">Click to start</p>
+        <p class="test-go">{t.clickToStart}</p>
       {:else}
-        <button class="btn btn-primary" onclick={lockMouse}>Lock mouse and start</button>
+        <button class="btn btn-primary" onclick={lockMouse}>{t.lockAndStart}</button>
       {/if}
       {#if lockError}<p class="form-error">{lockError}</p>{/if}
-      <p class="muted small">
-        View {formatNumber(config.view.horizontalFov, 1)}° horizontal · raw input:
-        {raw === 'yes' ? 'on' : raw === 'no' ? 'off (OS settings may affect results)' : 'unknown'}
-      </p>
+      <p class="muted small">{t.viewLine(formatNumber(config.view.horizontalFov, 1), raw)}</p>
     </div>
   {:else if flow.phase === 'round-summary' && flow.lastRound}
     <div class="test-panel wide" role="status">
       <RoundSummary round={flow.lastRound} unit={config.unit} kind="tracking" />
-      <p class="test-go">Click to continue</p>
+      <p class="test-go">{t.clickToContinue}</p>
     </div>
   {:else if flow.phase === 'paused'}
-    <div class="test-panel" role="dialog" aria-label="Paused">
-      <h2>Paused</h2>
-      <p class="muted small">The run in progress was discarded; it starts again from the middle.</p>
+    <div class="test-panel" role="dialog" aria-label={t.paused}>
+      <h2>{t.paused}</h2>
+      <p class="muted small">{t.trackingPaused}</p>
       {#if lockError}<p class="form-error">{lockError}</p>{/if}
-      <button class="btn btn-primary" onclick={resumeTest}>Resume</button>
-      <button class="btn" onclick={restartTest}>Restart</button>
-      <button class="btn" onclick={quit}>Quit</button>
+      <button class="btn btn-primary" onclick={resumeTest}>{t.resume}</button>
+      <button class="btn" onclick={restartTest}>{t.restart}</button>
+      <button class="btn" onclick={quit}>{t.quit}</button>
     </div>
   {/if}
 </div>

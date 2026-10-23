@@ -44,6 +44,7 @@
   import BiasChart from './BiasChart.svelte'
   import HistoryCard from './HistoryCard.svelte'
   import { combineRecent, type HistoryEntry } from './history'
+  import { i18n } from './lang.svelte'
   import CopyButton from './CopyButton.svelte'
   import { browserName, feedbackUrl, formatNumber, resultQuery, yawmatchLink } from './links'
   import { getStorage } from './prefs'
@@ -70,6 +71,8 @@
     $props()
 
   const combined = $derived(combineRecent(history))
+  const t = $derived(i18n.t.results)
+  const pct = (x: number) => i18n.t.common.percent(Math.round(x * 100))
 
   let saved = $state<'idle' | 'saved' | 'failed'>('idle')
 
@@ -90,7 +93,7 @@
   )
   const sensText = (v: number) => formatNumber(v, v < 1 ? 3 : 2)
 
-  const STYLE_NAMES: Record<AimStyle, string> = { flicks: 'Mostly flicks', both: 'Both', tracking: 'Mostly tracking' }
+  /** Test names for the feedback form, which stays in English. */
   const KIND_NAMES = { flick: 'flick', tracking: 'tracking', full: 'full test' } as const
   const centerOf = (r: Range) => Math.sqrt(r.lo * r.hi)
   /** Where tracking alone pointed compared with flicks (±7% counts as the same). */
@@ -102,14 +105,14 @@
   })
   const markers = $derived([
     ...(result.current !== null
-      ? [{ cm: result.current, label: `you · ${dist(result.current)}`, tone: 'current' as const }]
+      ? [{ cm: result.current, label: t.markerYou(dist(result.current)), tone: 'current' as const }]
       : []),
     ...(result.blend
-      ? [{ cm: centerOf(result.blend.flick), label: `flicks · ${dist(centerOf(result.blend.flick))}`, tone: 'muted' as const }]
+      ? [{ cm: centerOf(result.blend.flick), label: t.markerFlicks(dist(centerOf(result.blend.flick))), tone: 'muted' as const }]
       : []),
     // A tracking part that decided nothing has no centre worth showing.
     ...(result.blend && result.blend.applied?.tracking !== 0
-      ? [{ cm: centerOf(result.blend.tracking), label: `tracking · ${dist(centerOf(result.blend.tracking))}`, tone: 'muted' as const }]
+      ? [{ cm: centerOf(result.blend.tracking), label: t.markerTracking(dist(centerOf(result.blend.tracking))), tone: 'muted' as const }]
       : []),
   ])
 
@@ -169,22 +172,18 @@
 </script>
 
 <section class="result-hero">
-  <p class="eyebrow">
-    {result.rounds ? 'Your' : 'Shared'} {KIND_NAMES[result.kind]} result
-  </p>
+  <p class="eyebrow">{t.eyebrow(result.rounds !== null, result.kind)}</p>
   <h1>
-    Your sweet spot:
+    {t.sweetSpot}
     <span class="value">{dist(result.range.lo)}–{dist(result.range.hi)} {unitWord}</span>
     <span class="per">/ 360°</span>
   </h1>
   {#if relation}
     <p class="sub">
       {#if relation === 'inside'}
-        Your current <span class="num">{dist(result.current!)} {unitWord}</span> is already inside this range.
+        {@html t.insideHtml(`${dist(result.current!)} ${unitWord}`)}
       {:else}
-        Your current <span class="num">{dist(result.current!)} {unitWord}</span> is
-        {relation === 'below' ? 'shorter' : 'longer'} than this range, so a
-        {relation === 'below' ? 'slightly lower' : 'slightly higher'} sens may suit you.
+        {@html t.outsideHtml(`${dist(result.current!)} ${unitWord}`, relation === 'below')}
       {/if}
     </p>
   {/if}
@@ -194,7 +193,7 @@
   <div class="main">
     <Ruler
       {unit}
-      summary={`Recommended ${dist(result.range.lo)} to ${dist(result.range.hi)} ${unitWord} per 360°${result.current !== null ? `, current ${dist(result.current)}` : ''}`}
+      summary={t.rulerSummary(dist(result.range.lo), dist(result.range.hi), unitWord, result.current !== null ? dist(result.current) : null)}
       band={result.range}
       {markers}
     />
@@ -206,75 +205,59 @@
     {#if result.blend}
       {@const b = result.blend}
       <div class="card blend">
-        <h2>How this was combined</h2>
+        <h2>{t.blendTitle}</h2>
         <dl class="parts">
           <div>
-            <dt>Flick part</dt>
+            <dt>{t.flickPart}</dt>
             <dd class="num">{dist(b.flick.lo)}–{dist(b.flick.hi)} {unitWord}</dd>
           </div>
           <div>
-            <dt>Tracking part</dt>
+            <dt>{t.trackingPart}</dt>
             <dd class="num">{dist(b.tracking.lo)}–{dist(b.tracking.hi)} {unitWord}</dd>
           </div>
           <div>
-            <dt>Weighting</dt>
+            <dt>{t.weighting}</dt>
             <dd>
               {#if b.weights}
-                {b.style ? STYLE_NAMES[b.style] : ''}:
-                <span class="num">{Math.round(b.weights.flick * 100)}% flick · {Math.round(b.weights.tracking * 100)}% tracking</span>
+                {b.style ? i18n.t.setup.styles[b.style].name : ''}:
+                <span class="num">{i18n.t.setup.weights(Math.round(b.weights.flick * 100), Math.round(b.weights.tracking * 100))}</span>
               {:else}
-                by aim style
+                {t.byStyle}
               {/if}
               {#if b.applied && (!b.weights || Math.abs(b.applied.tracking - b.weights.tracking) > 0.005)}
                 <span class="applied">
-                  applied <span class="num">{Math.round(b.applied.flick * 100)}% · {Math.round(b.applied.tracking * 100)}%</span>
+                  {t.applied} <span class="num">{pct(b.applied.flick)} · {pct(b.applied.tracking)}</span>
                 </span>
               {/if}
             </dd>
           </div>
         </dl>
         <p class="muted small">
-          Each part found its own range; the result is their weighted average on a log scale. Tracking counts only as much
-          as it could tell distances apart{b.trackingDecided !== null
-            ? `: this time it decided ${Math.round(b.trackingDecided * 100)}% of its rounds`
-            : ''}.
+          {t.blendNote(b.trackingDecided !== null ? Math.round(b.trackingDecided * 100) : null)}
         </p>
         {#if lean === 'unknown'}
-          <p>
-            The tracking part could not tell the distances apart this time: reaction time hides small sens differences
-            when following a target. The result is based on your flicks.
-          </p>
+          <p>{t.leanUnknown}</p>
         {:else if lean === 'shorter'}
-          <p>
-            On its own, tracking pointed to a <strong>shorter</strong> distance (a higher sens). If tracking matters more
-            in your game than you picked, lean towards the low end.
-          </p>
+          <p>{@html t.leanShorterHtml}</p>
         {:else if lean === 'longer'}
-          <p>
-            On its own, tracking pointed to a <strong>longer</strong> distance (a lower sens). If tracking matters more in
-            your game than you picked, lean towards the high end.
-          </p>
+          <p>{@html t.leanLongerHtml}</p>
         {:else}
-          <p>Flicking and tracking pointed to about the same distance.</p>
+          <p>{t.leanSame}</p>
         {/if}
       </div>
     {/if}
 
     {#if result.edge}
       <div class="tip" role="note">
-        <p class="tip-title">Your best distance may lie {result.edge === 'high' ? 'above' : 'below'} the tested range</p>
+        <p class="tip-title">{t.edgeTitle(result.edge === 'high')}</p>
         <p>
-          The test kept pointing {result.edge === 'high' ? 'towards longer distances (lower sens)' : 'towards shorter distances (higher sens)'}.
-          {#if onRetestBeyond}
-            A second test centred on that end can look past it.
-          {:else}
-            Take the test yourself, starting from your own sens, to explore further.
-          {/if}
+          {t.edgeText(result.edge === 'high')}
+          {onRetestBeyond ? t.edgeRetest : t.edgeShared}
         </p>
         {#if onRetestBeyond}
           {@const edge = result.edge}
           <button type="button" class="btn btn-primary edge-retest" onclick={() => onRetestBeyond(edge)}>
-            Test {edge === 'high' ? 'longer distances (lower sens)' : 'shorter distances (higher sens)'}
+            {t.edgeButton(edge === 'high')}
           </button>
         {/if}
       </div>
@@ -282,15 +265,15 @@
 
     {#if sens && game}
       <div class="card sens-card">
-        <p class="muted small">In {game.name} at <span class="num">{formatNumber(result.dpi!, 0)}</span> DPI</p>
+        <p class="muted small">{@html t.sensInHtml(game.name, formatNumber(result.dpi!, 0))}</p>
         <p class="sens num">{sensText(sens.low)}–{sensText(sens.high)}</p>
         <div class="sens-mid">
-          <span>Middle of the range: <span class="num">{sensText(sens.mid)}</span></span>
-          <CopyButton value={sensText(sens.mid)} ariaLabel={`Copy sens ${sensText(sens.mid)}`} />
+          <span>{@html t.middleHtml(sensText(sens.mid))}</span>
+          <CopyButton value={sensText(sens.mid)} ariaLabel={t.copySens(sensText(sens.mid))} />
         </div>
       </div>
     {:else if !game && result.gameId === null}
-      <p class="muted">Pick your game on the setup screen next time to see this as an in-game sens.</p>
+      <p class="muted">{t.pickGame}</p>
     {/if}
 
     <AbCard
@@ -316,44 +299,41 @@
 
   <aside class="side">
     <div class="tip" role="note">
-      <p class="tip-title">A short browser test, not the final word</p>
+      <p class="tip-title">{t.honestyTitle}</p>
       <p>
-        There is no single correct sensitivity. This range is where you were most consistent in a few minutes of
-        {result.kind === 'tracking' ? 'tracking' : result.kind === 'full' ? 'flicks and tracking' : 'flicks'}, in a
-        browser, at this frame rate. Try the middle of it in game for a few sessions before deciding.
+        {t.honestyText(result.kind)}
         {#if result.kind === 'tracking'}
-          Tracking preference is usually broader than flicking, so this range is wider; the flick test narrows it
-          further.
+          {t.honestyTracking}
         {/if}
       </p>
     </div>
 
     <div class="actions">
       <a class="btn btn-primary" href={convertUrl} target="_blank" rel="noopener">
-        Convert to other games <span aria-hidden="true">→</span>
+        {t.convert} <span aria-hidden="true">→</span>
       </a>
       {#if game && sens}
         <button type="button" class="btn" onclick={save} disabled={saved === 'saved'}>
-          {saved === 'saved' ? 'Saved to profile' : 'Save to profile'}
+          {saved === 'saved' ? t.saved : t.save}
         </button>
       {/if}
       {#if onRetest}
-        <button type="button" class="btn" onclick={onRetest}>Retest</button>
+        <button type="button" class="btn" onclick={onRetest}>{t.retest}</button>
       {/if}
-      <button type="button" class="btn" onclick={onNewTest}>{onRetest ? 'Change settings' : 'Take the test yourself'}</button>
-      <CopyButton value={shareUrl} label="Copy result link" />
+      <button type="button" class="btn" onclick={onNewTest}>{onRetest ? t.changeSettings : t.takeYourself}</button>
+      <CopyButton value={shareUrl} label={t.copyLink} />
     </div>
     <p class="feedback small">
-      Tried it in game?
-      <a href={reportUrl} target="_blank" rel="noopener">Tell us if it was right</a>
-      <span class="muted">(opens a prefilled form on GitHub; nothing is sent until you submit it)</span>
+      {t.feedbackAsk}
+      <a href={reportUrl} target="_blank" rel="noopener">{t.feedbackLink}</a>
+      <span class="muted">{t.feedbackNote}</span>
     </p>
     {#if saved === 'saved'}
       <p class="muted small" role="status">
-        Saved as {game?.name} sens <span class="num">{sens ? sensText(sens.mid) : ''}</span>. yawmatch and the next test here will start from it.
+        {@html t.savedAsHtml(game?.name ?? '', sens ? sensText(sens.mid) : '')}
       </p>
     {:else if saved === 'failed'}
-      <p class="form-error" role="status">Could not save: your browser blocks local storage.</p>
+      <p class="form-error" role="status">{t.saveFailed}</p>
     {/if}
   </aside>
 </div>

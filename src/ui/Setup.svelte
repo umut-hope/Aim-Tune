@@ -14,6 +14,7 @@
   import Calibration from './Calibration.svelte'
   import { clearCalibration, loadCalibration, saveCalibration } from './calibration'
   import HelpTip from './HelpTip.svelte'
+  import { i18n } from './lang.svelte'
   import { getStorage } from './prefs'
   import { browserName, formatNumber, parsePositive } from './links'
   import Ruler from './Ruler.svelte'
@@ -44,29 +45,15 @@
     preload,
   }: Props = $props()
 
-  const KINDS: { id: TestKind; name: string; tag: string; desc: string }[] = [
-    { id: 'flick', name: 'Flick test', tag: 'recommended', desc: 'Snap to targets · ~2 min' },
-    { id: 'full', name: 'Full test', tag: 'experimental', desc: 'Flicks, then tracking · ~4.5 min' },
-    { id: 'tracking', name: 'Tracking only', tag: 'experimental', desc: 'Follow a moving target · ~3 min' },
-  ]
-  const STYLES: { id: AimStyle; name: string; examples: string }[] = [
-    { id: 'flicks', name: 'Mostly flicks', examples: 'e.g. Valorant, CS2, Rainbow Six Siege' },
-    { id: 'both', name: 'Both', examples: 'e.g. Fortnite, Call of Duty, Deadlock' },
-    { id: 'tracking', name: 'Mostly tracking', examples: 'e.g. Apex Legends, Overwatch 2' },
-  ]
-  const pct = (x: number) => `${Math.round(x * 100)}%`
+  const t = $derived(i18n.t.setup)
 
-  const HELP = {
-    kind: "Flick test: snap to targets that appear, one click each; the clearest measurement, and two runs combined are better than one long test. Full test and tracking add a moving target; in testing, tracking often cannot tell sens settings apart (reaction time hides small differences), so they are marked experimental.",
-    style:
-      'Each part finds its own best range; the result is their weighted average (on a log scale, since sens feels proportional). Flicks keep at least 35% because tracking alone measures sens less precisely, and tracking counts only as much as it could tell distances apart. Your game is a guess at the mix: pick what matches how you actually play.',
-    game: "Your main game. Sets the field of view so targets appear where they would in that game, and converts the result to its sens.",
-    sens: "The mouse sensitivity you actually play with now, as the game shows it. Keep using it here after a test until you have tried a new value in game: the test should start from what your hand knows.",
-    dpi: 'Counts per inch of your mouse, set in its own software (often 400, 800 or 1600). Not the in-game sensitivity.',
-    distance:
-      'How far you move the mouse for a full 360° turn. yawmatch can work it out from your in-game sens.',
-    fov: "The FOV value in your game's video settings, in the game's own units. Leave empty for the game's default.",
-  }
+  const KINDS: { id: TestKind; tag: 'recommended' | 'experimental' }[] = [
+    { id: 'flick', tag: 'recommended' },
+    { id: 'full', tag: 'experimental' },
+    { id: 'tracking', tag: 'experimental' },
+  ]
+  const STYLES: AimStyle[] = ['flicks', 'both', 'tracking']
+  const pct = (x: number) => Math.round(x * 100)
 
   const finePointer = hasFinePointer()
   const browser = typeof navigator === 'undefined' ? 'Other' : browserName(navigator.userAgent)
@@ -120,28 +107,26 @@
   }
 
   const dist = (cm: number) => formatNumber(fromCm(cm, unit), 1)
+  const rangeText = $derived(`${dist(testRange.lo)}–${dist(testRange.hi)} ${unit}`)
 </script>
 
 <section class="hero">
-  <h1>Find the sens your hand actually likes.</h1>
-  <p class="hero-sub">
-    A short flick test in your browser, about 2 minutes. It measures how you aim and suggests a range, not a single
-    magic number; two runs combined give a steadier answer. You need a mouse.
-  </p>
+  <h1>{t.heroTitle}</h1>
+  <p class="hero-sub">{t.heroSub}</p>
 </section>
 
 <form class="workspace" onsubmit={start}>
   <div class="card form-card">
     <div class="field">
       <div class="field-head">
-        <span class="kind-label" id="kind-label">Test</span>
-        <HelpTip label="the test types" text={HELP.kind} />
+        <span class="kind-label" id="kind-label">{t.kindLabel}</span>
+        <HelpTip label={t.kindHelp} text={t.help.kind} />
       </div>
       <div class="kinds" role="group" aria-labelledby="kind-label">
         {#each KINDS as k (k.id)}
           <button type="button" aria-pressed={kind === k.id} onclick={() => (kind = k.id)}>
-            <span class="kind-name">{k.name} <span class="kind-tag" class:experimental={k.tag === 'experimental'}>{k.tag}</span></span>
-            <span class="kind-desc">{k.desc}</span>
+            <span class="kind-name">{t.kinds[k.id].name} <span class="kind-tag" class:experimental={k.tag === 'experimental'}>{t.tags[k.tag]}</span></span>
+            <span class="kind-desc">{t.kinds[k.id].desc}</span>
           </button>
         {/each}
       </div>
@@ -150,45 +135,40 @@
     {#if kind === 'full'}
       <div class="field">
         <div class="field-head">
-          <span class="kind-label" id="style-label">What does your game ask for more?</span>
-          <HelpTip label="how the parts are weighted" text={HELP.style} />
+          <span class="kind-label" id="style-label">{t.styleLabel}</span>
+          <HelpTip label={t.styleHelp} text={t.help.style} />
         </div>
         <div class="styles" role="group" aria-labelledby="style-label">
-          {#each STYLES as st (st.id)}
-            <button type="button" aria-pressed={style === st.id} onclick={() => (style = st.id)}>
+          {#each STYLES as st (st)}
+            <button type="button" aria-pressed={style === st} onclick={() => (style = st)}>
               <span class="style-top">
-                <span class="kind-name">{st.name}</span>
+                <span class="kind-name">{t.styles[st].name}</span>
                 <span class="num weights">
-                  {pct(STYLE_WEIGHTS[st.id].flick)} flick · {pct(STYLE_WEIGHTS[st.id].tracking)} tracking
+                  {t.weights(pct(STYLE_WEIGHTS[st].flick), pct(STYLE_WEIGHTS[st].tracking))}
                 </span>
               </span>
-              <span class="kind-desc">{st.examples}</span>
+              <span class="kind-desc">{t.styles[st].examples}</span>
             </button>
           {/each}
         </div>
-        <p class="muted small">
-          Usually: tactical shooters reward flicks, fast hero and battle royale games reward tracking. It is your call:
-          go by how you actually play.
-        </p>
+        <p class="muted small">{t.styleNote}</p>
       </div>
     {/if}
 
     <div class="field">
       <div class="field-head">
-        <label for="game">Game</label>
-        <HelpTip label="the game setting" text={HELP.game} />
+        <label for="game">{t.gameLabel}</label>
+        <HelpTip label={t.gameHelp} text={t.help.game} />
       </div>
       <select id="game" bind:value={form.gameId}>
-        <option value="">Choose your game</option>
+        <option value="">{t.chooseGame}</option>
         {#each games as g (g.id)}
           <option value={g.id}>{g.name}</option>
         {/each}
-        <option value={MANUAL_GAME}>Other: I know my {unitLabel}</option>
+        <option value={MANUAL_GAME}>{t.otherGame(unitLabel)}</option>
       </select>
       {#if gamesError}
-        <p class="form-error">
-          Could not load the game list ({gamesError}). You can still enter your {unitLabel} with "Other".
-        </p>
+        <p class="form-error">{t.gamesError(gamesError, unitLabel)}</p>
       {/if}
     </div>
 
@@ -196,24 +176,24 @@
       {#if manual}
         <div class="field">
           <div class="field-head">
-            <label for="distance">Current {unitLabel}</label>
-            <HelpTip label={unitLabel} text={HELP.distance} />
+            <label for="distance">{t.currentDistance(unitLabel)}</label>
+            <HelpTip label={unitLabel} text={t.help.distance} />
           </div>
           <input id="distance" class="num-input" type="text" inputmode="decimal" autocomplete="off" bind:value={form.distance} aria-invalid={!currentOk} />
         </div>
       {:else}
         <div class="field">
           <div class="field-head">
-            <label for="sens">In-game sens</label>
-            <HelpTip label="in-game sens" text={HELP.sens} />
+            <label for="sens">{t.sensLabel}</label>
+            <HelpTip label={t.sensHelp} text={t.help.sens} />
           </div>
           <input id="sens" class="num-input" type="text" inputmode="decimal" autocomplete="off" bind:value={form.sens} aria-invalid={!currentOk} />
         </div>
       {/if}
       <div class="field">
         <div class="field-head">
-          <label for="dpi">DPI</label>
-          <HelpTip label="DPI" text={HELP.dpi} />
+          <label for="dpi">{t.dpiLabel}</label>
+          <HelpTip label={t.dpiHelp} text={t.help.dpi} />
         </div>
         <input id="dpi" class="num-input" type="text" inputmode="numeric" autocomplete="off" bind:value={form.dpi} aria-invalid={form.dpi !== '' && dpi === null} />
       </div>
@@ -221,71 +201,69 @@
 
     <div class="field">
       <div class="field-head">
-        <label for="fov">In-game FOV (optional)</label>
-        <HelpTip label="in-game FOV" text={HELP.fov} />
+        <label for="fov">{t.fovLabel}</label>
+        <HelpTip label={t.fovHelp} text={t.help.fov} />
       </div>
       {#if fovEditable}
-        <input id="fov" class="num-input" type="text" inputmode="decimal" autocomplete="off" bind:value={form.fov} placeholder={game?.fov ? `default ${game.fov.default}` : 'default'} />
+        <input id="fov" class="num-input" type="text" inputmode="decimal" autocomplete="off" bind:value={form.fov} placeholder={t.fovDefault(game?.fov ? game.fov.default : null)} />
         {#if !game || game.fov === null}
-          <p class="muted small">FOV not known for this game: a typical 70° vertical is used unless you enter yours.</p>
+          <p class="muted small">{t.fovUnknown}</p>
         {/if}
       {:else if game?.fov}
         <p id="fov" class="muted small">
-          Fixed in {game.name}: <span class="num">{game.fov.default}</span>{game.fov.type === 'horizontal-4:3' ? ' (4:3 horizontal)' : ''}.
+          {@html t.fovFixedHtml(game.name, game.fov.default, game.fov.type === 'horizontal-4:3')}
         </p>
       {/if}
     </div>
 
     <div class="field">
-      <span class="field-head"><span class="unit-label">Show distances in</span></span>
-      <div class="units" role="group" aria-label="Distance unit">
+      <span class="field-head"><span class="unit-label">{t.unitsLabel}</span></span>
+      <div class="units" role="group" aria-label={t.unitsAria}>
         <button type="button" aria-pressed={unit === 'cm'} onclick={() => onUnitChange('cm')}>cm</button>
         <button type="button" aria-pressed={unit === 'in'} onclick={() => onUnitChange('in')}>in</button>
       </div>
     </div>
 
     {#if !currentOk}
-      <p class="form-error">That works out to {current !== null ? dist(current) : '?'} {unitLabel}, which looks like a typo.</p>
+      <p class="form-error">{t.typo(current !== null ? dist(current) : '?', unitLabel)}</p>
     {/if}
   </div>
 
   <div class="side">
     <Ruler
       {unit}
-      summary={current !== null ? `Your current distance: ${dist(current)} ${unitLabel}` : 'Your current distance is not set'}
+      summary={current !== null ? t.rulerCurrent(dist(current), unitLabel) : t.rulerUnset}
       bar={current !== null && currentOk ? current : null}
     />
     <p class="muted small">
       {#if current !== null && currentOk}
-        The test starts around your current distance: <span class="num">{dist(testRange.lo)}–{dist(testRange.hi)} {unit}</span>.
+        {@html t.startsAroundHtml(rangeText)}
       {:else}
-        Without your current sens the test covers <span class="num">{dist(testRange.lo)}–{dist(testRange.hi)} {unit}</span>.
+        {@html t.coversHtml(rangeText)}
       {/if}
     </p>
 
-    <ul class="checks card" aria-label="Browser checks">
+    <ul class="checks card" aria-label={t.checks.aria}>
       <li class={finePointer ? 'pass' : 'warn'}>
         <span class="mark" aria-hidden="true">{finePointer ? '✓' : '!'}</span>
-        <span>{finePointer ? 'Mouse detected' : 'No mouse detected. The test needs a mouse.'}</span>
+        <span>{finePointer ? t.checks.mouseOk : t.checks.mouseMissing}</span>
       </li>
       <li class={lockSupported ? 'pass' : 'warn'}>
         <span class="mark" aria-hidden="true">{lockSupported ? '✓' : '!'}</span>
-        <span>{lockSupported ? 'Pointer lock supported' : 'This browser cannot lock the mouse. Try Chrome, Edge or Firefox.'}</span>
+        <span>{lockSupported ? t.checks.lockOk : t.checks.lockMissing}</span>
       </li>
       <li class={raw === 'yes' ? 'pass' : raw === null ? 'idle' : 'warn'}>
         <span class="mark" aria-hidden="true">{raw === 'yes' ? '✓' : raw === null ? '?' : '!'}</span>
         <span>
           {#if raw === null}
-            Raw input not checked yet.
-            <button type="button" class="link-button" onclick={checkRaw} disabled={!lockSupported}>Check</button>
+            {t.checks.rawUnchecked}
+            <button type="button" class="link-button" onclick={checkRaw} disabled={!lockSupported}>{t.checks.rawCheck}</button>
           {:else if raw === 'yes'}
-            Raw input on: OS mouse acceleration is bypassed.
+            {t.checks.rawYes}
           {:else if raw === 'no'}
-            No raw input in this browser. Turn off "Enhance pointer precision" (Windows) or mouse acceleration, or results may drift.
+            {t.checks.rawNo}
           {:else}
-            This browser cannot confirm raw input (Firefox and Safari ignore the request), so Windows mouse settings may
-            change your results. For the most accurate test use Chrome or Edge, or turn off "Enhance pointer precision"
-            and keep the Windows pointer speed at 6/11.
+            {t.checks.rawUnknown}
           {/if}
         </span>
       </li>
@@ -293,11 +271,11 @@
         <span class="mark" aria-hidden="true">{fps === null ? '…' : fpsStatus(fps) === 'pass' ? '✓' : '!'}</span>
         <span>
           {#if fps === null}
-            Measuring frame rate…
+            {t.checks.fpsMeasuring}
           {:else if fpsStatus(fps) === 'pass'}
-            <span class="num">{fps.toFixed(0)}</span> fps
+            {@html t.checks.fpsOkHtml(fps.toFixed(0))}
           {:else}
-            Only <span class="num">{fps.toFixed(0)}</span> fps. Close other tabs or plug in a laptop for smoother flicks.
+            {@html t.checks.fpsLowHtml(fps.toFixed(0))}
           {/if}
         </span>
       </li>
@@ -309,13 +287,13 @@
 
     {#if !finePointer}
       <div class="tip" role="note">
-        <p class="tip-title">Use a computer with a mouse</p>
-        <p>The flick test needs a mouse and a keyboard. Open this page on your computer to take it.</p>
+        <p class="tip-title">{t.phoneTitle}</p>
+        <p>{t.phoneText}</p>
       </div>
     {:else}
-      <button type="submit" class="btn btn-primary btn-large" disabled={!canStart}>Start test</button>
+      <button type="submit" class="btn btn-primary btn-large" disabled={!canStart}>{t.start}</button>
       {#if form.gameId === ''}
-        <p class="muted small">Tip: choose your game to get the result in its sens.</p>
+        <p class="muted small">{t.chooseTip}</p>
       {/if}
       {#if startError}<p class="form-error">{startError}</p>{/if}
     {/if}

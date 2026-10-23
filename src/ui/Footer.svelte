@@ -1,6 +1,12 @@
+<script lang="ts">
+  import { i18n } from './lang.svelte'
+
+  const t = $derived(i18n.t.footer)
+</script>
+
 <footer class="site-footer">
-  <p>Nothing leaves your browser.</p>
-  <p>Not affiliated with any game publisher. Game names belong to their respective owners.</p>
+  <p>{t.local}</p>
+  <p>{t.notAffiliated}</p>
 </footer>
 
 <style>

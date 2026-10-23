@@ -1,5 +1,7 @@
 <!-- Copies a value to the clipboard and confirms with "Copied" for a moment. -->
 <script lang="ts">
+  import { i18n } from './lang.svelte'
+
   interface Props {
     value: string
     /** Visible label, e.g. "Copy". */
@@ -8,7 +10,9 @@
     ariaLabel?: string
   }
 
-  let { value, label = 'Copy', ariaLabel }: Props = $props()
+  let { value, label, ariaLabel }: Props = $props()
+  const t = $derived(i18n.t.common)
+  const text = $derived(label ?? t.copy)
   let state = $state<'idle' | 'copied' | 'failed'>('idle')
   let timer: number | undefined
 
@@ -24,10 +28,10 @@
   }
 </script>
 
-<button type="button" class="btn copy" class:is-copied={state === 'copied'} onclick={copy} aria-label={ariaLabel ?? label}>
-  {state === 'copied' ? 'Copied' : state === 'failed' ? 'Copy failed' : label}
+<button type="button" class="btn copy" class:is-copied={state === 'copied'} onclick={copy} aria-label={ariaLabel ?? text}>
+  {state === 'copied' ? t.copied : state === 'failed' ? t.copyFailed : text}
 </button>
-<span class="sr-only" aria-live="polite">{state === 'copied' ? 'Copied to clipboard' : ''}</span>
+<span class="sr-only" aria-live="polite">{state === 'copied' ? t.copiedLive : ''}</span>
 
 <style>
   .copy {

@@ -19,6 +19,8 @@
   import HowItWorks from './ui/HowItWorks.svelte'
   import { loadCalibration } from './ui/calibration'
   import { browserName, parseResultParams, parseSetupParams, resultQuery } from './ui/links'
+  import { carryLang } from './ui/i18n'
+  import { i18n } from './ui/lang.svelte'
   import { getStorage, loadUnit, saveUnit } from './ui/prefs'
   import { addToHistory, clearHistory, loadHistory, type HistoryEntry } from './ui/history'
   import { loadProfile } from './ui/profile'
@@ -151,7 +153,7 @@
   })
 
   $effect(() => {
-    document.title = route === 'how' ? 'How it works · aimtune' : 'aimtune · mouse sensitivity finder'
+    document.title = route === 'how' ? i18n.t.meta.howTitle : i18n.t.meta.title
   })
 
   // Prefill: URL first, then the saved profile.
@@ -262,7 +264,7 @@
           }
         : {}),
     })
-    history.replaceState(null, '', `${import.meta.env.BASE_URL}${q}#/`)
+    history.replaceState(null, '', `${import.meta.env.BASE_URL}${carryLang(q, location.search)}#/`)
     window.scrollTo(0, 0)
   }
 
@@ -279,7 +281,7 @@
 
   function newTest() {
     screen = 'setup'
-    history.replaceState(null, '', `${import.meta.env.BASE_URL}#/`)
+    history.replaceState(null, '', `${import.meta.env.BASE_URL}${carryLang('', location.search)}#/`)
     window.scrollTo(0, 0)
   }
 
@@ -316,8 +318,8 @@
     const base = { dpi: startConfig.inputDpi, view: startConfig.view, initial: startConfig.initial, unit }
     if (startConfig.kind !== 'full') return base
     return part === 'flick'
-      ? { ...base, search: FULL_FLICK_SEARCH, part: 'Part 1 of 2 · Flicks' }
-      : { ...base, search: FULL_TRACKING_SEARCH, part: 'Part 2 of 2 · Tracking' }
+      ? { ...base, search: FULL_FLICK_SEARCH, part: i18n.t.test.partFlick }
+      : { ...base, search: FULL_TRACKING_SEARCH, part: i18n.t.test.partTracking }
   })
 </script>
 
@@ -352,12 +354,12 @@
         }}
       />
       {#if loadError}
-        <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
+        <p class="form-error" role="alert">{i18n.t.common.loadError(loadError)}</p>
       {/if}
     {:else}
       <Setup {games} {gamesError} bind:form bind:kind bind:style {unit} onUnitChange={setUnit} onStart={start} preload={preloadTests} />
       {#if loadError}
-        <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
+        <p class="form-error" role="alert">{i18n.t.common.loadError(loadError)}</p>
       {/if}
     {/if}
   </main>

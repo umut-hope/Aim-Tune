@@ -7,6 +7,7 @@
   import { fromCm, type DistanceUnit } from '../core/units'
   import { LABELS, type AbOption, type AbOutcome } from '../tests/ab-flow'
   import { hasFinePointer } from './checks'
+  import { abOptionName, i18n } from './lang.svelte'
   import { formatNumber } from './links'
 
   interface Props {
@@ -21,6 +22,7 @@
   let { range, current, dpi, unit, outcome, onStart }: Props = $props()
 
   let blind = $state(true)
+  const t = $derived(i18n.t.ab)
   const finePointer = hasFinePointer()
 
   const center = $derived(Math.sqrt(range.lo * range.hi))
@@ -28,13 +30,13 @@
   const pair = $derived.by((): [AbOption, AbOption] => {
     if (current !== null && Math.abs(current / center - 1) > 0.02) {
       return [
-        { cm360: current, name: 'Current' },
-        { cm360: center, name: 'Recommended' },
+        { cm360: current, name: 'current' },
+        { cm360: center, name: 'recommended' },
       ]
     }
     return [
-      { cm360: range.lo, name: 'Faster end' },
-      { cm360: range.hi, name: 'Slower end' },
+      { cm360: range.lo, name: 'faster' },
+      { cm360: range.hi, name: 'slower' },
     ]
   })
 
@@ -44,25 +46,24 @@
 </script>
 
 <section class="card ab" aria-labelledby="ab-title">
-  <h2 id="ab-title">Compare by feel</h2>
+  <h2 id="ab-title">{t.title}</h2>
 
   {#if outcome}
     <p class="verdict" role="status">
       {#if outcome.preferred}
-        You preferred <strong>{outcome.preferred.name}</strong>
-        (<span class="num">{dist(outcome.preferred.cm360)} {unitLabel}</span>){outcome.blind ? ', without knowing which was which' : ''}.
+        {@html t.preferredHtml(abOptionName(outcome.preferred.name), `${dist(outcome.preferred.cm360)} ${unitLabel}`, outcome.blind)}
       {:else}
-        You felt no clear difference, so either works. Pick the one closer to your habits.
+        {t.noDifference}
       {/if}
     </p>
     <table class="num small">
       <thead>
-        <tr><th scope="col">Option</th><th scope="col">Distance</th><th scope="col">Time</th><th scope="col">Hits</th></tr>
+        <tr>{#each t.headers as h (h)}<th scope="col">{h}</th>{/each}</tr>
       </thead>
       <tbody>
         {#each outcome.options as option, i (i)}
           <tr class:chosen={outcome.choice === i}>
-            <th scope="row">{LABELS[i]} · {option.name}</th>
+            <th scope="row">{LABELS[i]} · {abOptionName(option.name)}</th>
             <td>{dist(option.cm360)}</td>
             <td>{Math.round(outcome.stats[i]!.timeMs / 1000)} s</td>
             <td>{outcome.stats[i]!.hits}/{outcome.stats[i]!.shots} ({accuracy(outcome.stats[i]!.hits, outcome.stats[i]!.shots)})</td>
@@ -70,27 +71,28 @@
         {/each}
       </tbody>
     </table>
-    <p class="muted small">Hit counts are context only: how it felt is the answer here.</p>
+    <p class="muted small">{t.contextNote}</p>
   {:else}
     <p class="muted">
-      Aim freely at still and moving targets and switch between two settings with <kbd>Space</kbd>:
-      <span class="num">{pair[0].name} {dist(pair[0].cm360)}</span> and
-      <span class="num">{pair[1].name} {dist(pair[1].cm360)} {unitLabel}</span>. Then pick the one that feels better.
+      {@html t.introHtml(
+        `${abOptionName(pair[0].name)} ${dist(pair[0].cm360)}`,
+        `${abOptionName(pair[1].name)} ${dist(pair[1].cm360)} ${unitLabel}`,
+      )}
     </p>
   {/if}
 
   {#if dpi === null}
-    <p class="muted small">Needs your DPI: take the test yourself to compare.</p>
+    <p class="muted small">{t.needsDpi}</p>
   {:else if !finePointer}
-    <p class="muted small">Needs a computer with a mouse.</p>
+    <p class="muted small">{t.needsMouse}</p>
   {:else}
     <div class="row">
       <label class="blind">
         <input type="checkbox" bind:checked={blind} />
-        Blind: hide which is which until I choose
+        {t.blind}
       </label>
       <button type="button" class="btn btn-primary" onclick={() => onStart(pair[0], pair[1], blind)}>
-        {outcome ? 'Compare again' : 'Start A/B test'}
+        {outcome ? t.again : t.start}
       </button>
     </div>
   {/if}
@@ -104,7 +106,7 @@
   h2 {
     font-size: 1.1rem;
   }
-  .verdict strong {
+  .verdict :global(strong) {
     color: var(--color-accent);
   }
   table {
@@ -145,7 +147,7 @@
     height: 18px;
     accent-color: var(--color-accent);
   }
-  kbd {
+  .ab :global(kbd) {
     padding: 0 0.3rem;
     border: 1px solid var(--color-border);
     border-radius: 4px;

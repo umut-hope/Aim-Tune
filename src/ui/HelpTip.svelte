@@ -5,6 +5,8 @@
   kept inside it, so it never widens the page on phones.
 -->
 <script lang="ts">
+  import { i18n } from './lang.svelte'
+
   interface Props {
     /** What the tip explains, for the button's accessible name, e.g. "DPI". */
     label: string
@@ -50,7 +52,7 @@
   onfocusout={hide}
   onkeydown={onKeydown}
 >
-  <button bind:this={trigger} type="button" class="trigger" aria-label={`What is ${label}?`} aria-describedby={id}>?</button>
+  <button bind:this={trigger} type="button" class="trigger" aria-label={i18n.t.common.helpAbout(label)} aria-describedby={id}>?</button>
   <span
     class="tip"
     class:open
