@@ -24,10 +24,14 @@
     bar?: number | null
     /** Yellow band between two distances. */
     band?: { lo: number; hi: number } | null
+    /** 'soft' draws the band faded, so markers on top of it stand out. */
+    bandTone?: 'accent' | 'soft'
     markers?: RulerMarker[]
+    /** Squeeze the whole scale into the available width instead of scrolling. */
+    fit?: boolean
   }
 
-  let { unit, summary, bar = null, band = null, markers = [] }: Props = $props()
+  let { unit, summary, bar = null, band = null, bandTone = 'accent', markers = [], fit = false }: Props = $props()
 
   const SCALES = {
     cm: { base: 60, minor: 1, mid: 5, major: 10, max: 200 },
@@ -50,7 +54,11 @@
   const scaleMax = $derived(
     Math.min(scale.max, Math.max(scale.base, Math.ceil((largest * 1.05) / scale.major) * scale.major)),
   )
-  const px = $derived(Math.max(MIN_PX_PER_UNIT[unit], (viewportWidth - SIDE * 2) / scaleMax))
+  const px = $derived(
+    fit
+      ? Math.max(1, (viewportWidth - SIDE * 2) / scaleMax)
+      : Math.max(MIN_PX_PER_UNIT[unit], (viewportWidth - SIDE * 2) / scaleMax),
+  )
   const trackWidth = $derived(scaleMax * px)
   const at = (cm: number) => Math.min(d(cm), scaleMax) * px
 
@@ -71,16 +79,20 @@
   })
 
   const sortedMarkers = $derived([...markers].sort((a, b) => a.cm - b.cm))
-  /** With two markers, labels point away from each other so they never overlap. */
-  function anchor(index: number, x: number): 'start' | 'end' | 'middle' {
-    if (sortedMarkers.length === 2) return index === 0 ? 'end' : 'start'
+  /** Labels are centred on their mark, except near an end, where they turn inwards. */
+  function anchor(x: number): 'start' | 'end' | 'middle' {
     if (x < 60) return 'start'
     if (x > trackWidth - 60) return 'end'
     return 'middle'
   }
 
   // Keep the interesting part in view when the ruler scrolls (phones).
-  const focus = $derived(band ? at((band.lo + band.hi) / 2) : bar !== null ? at(bar) : null)
+  const focus = $derived.by(() => {
+    if (band) return at((band.lo + band.hi) / 2)
+    if (bar !== null) return at(bar)
+    if (sortedMarkers.length > 0) return sortedMarkers.reduce((acc, m) => acc + at(m.cm), 0) / sortedMarkers.length
+    return null
+  })
   $effect(() => {
     if (!viewport || viewportWidth === 0 || focus === null) return
     const target = focus + SIDE
@@ -94,17 +106,21 @@
 <section class="ruler-panel" aria-label={summary}>
   <div class="ruler-viewport" bind:this={viewport} bind:clientWidth={viewportWidth}>
     <div class="ruler" style:width="{trackWidth + SIDE * 2}px" style:--side="{SIDE}px" aria-hidden="true">
-      <div class="labels">
-        {#each sortedMarkers as m, i (m.label)}
-          <span class="marker-label tone-{m.tone} anchor-{anchor(i, at(m.cm))}" style:left="{SIDE + at(m.cm)}px">
+      <!-- One label row per marker, so labels of close marks never overlap. -->
+      {#each sortedMarkers as m (m.label)}
+        <div class="labels">
+          <span class="marker-label tone-{m.tone} anchor-{anchor(at(m.cm))}" style:left="{SIDE + at(m.cm)}px">
             {m.label}
           </span>
-        {/each}
-      </div>
+        </div>
+      {/each}
       <div class="labels">
         <span class="zero">0°</span>
         {#if band}
-          <span class="band-label" style:left="{SIDE + (at(band.lo) + at(band.hi)) / 2}px">
+          <span
+            class="band-label anchor-{anchor((at(band.lo) + at(band.hi)) / 2)}"
+            style:left="{SIDE + (at(band.lo) + at(band.hi)) / 2}px"
+          >
             {formatNumber(d(band.lo), 1)}–{formatNumber(d(band.hi), 1)}
           </span>
         {:else if bar !== null}
@@ -119,7 +135,7 @@
           <div class="bar" style:width="{at(bar)}px"></div>
         {/if}
         {#if band}
-          <div class="band" style:left="{at(band.lo)}px" style:width="{Math.max(3, at(band.hi) - at(band.lo))}px"></div>
+          <div class="band" class:soft={bandTone === 'soft'} style:left="{at(band.lo)}px" style:width="{Math.max(3, at(band.hi) - at(band.lo))}px"></div>
         {/if}
         {#each sortedMarkers as m (m.label)}
           <div class="marker tone-{m.tone}" style:left="{at(m.cm)}px"></div>
@@ -191,17 +207,16 @@
     padding: 0 0 0 0.4rem;
   }
   .band-label {
-    transform: translateX(-50%);
     color: var(--color-accent);
   }
-  .marker-label.anchor-middle {
+  .anchor-middle {
     transform: translateX(-50%);
   }
-  .marker-label.anchor-end {
+  .anchor-end {
     transform: translateX(-100%);
     padding-right: 0.35rem;
   }
-  .marker-label.anchor-start {
+  .anchor-start {
     padding-left: 0.35rem;
   }
   .track {
@@ -225,6 +240,9 @@
     transition:
       left var(--duration-bar) var(--ease-out),
       width var(--duration-bar) var(--ease-out);
+  }
+  .band.soft {
+    background: color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
   .marker {
     position: absolute;

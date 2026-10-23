@@ -201,7 +201,10 @@
       <h2>Round {r.round + 1} done</h2>
       <Ruler
         unit={config.unit}
-        summary="The two distances tested this round"
+        summary="The two distances tested this round, inside the range searched so far"
+        fit
+        band={r.range}
+        bandTone="soft"
         markers={[r.low, r.high].map((b) => ({
           cm: b.cm360,
           label: `${dist(b.cm360)}${r.winner === b.side ? ' · better' : ''}`,
