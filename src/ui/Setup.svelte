@@ -141,9 +141,9 @@
           <span class="kind-label" id="style-label">What does your game ask for more?</span>
           <HelpTip label="how the parts are weighted" text={HELP.style} />
         </div>
-        <div class="styles" role="radiogroup" aria-labelledby="style-label">
+        <div class="styles" role="group" aria-labelledby="style-label">
           {#each STYLES as st (st.id)}
-            <button type="button" role="radio" aria-checked={style === st.id} onclick={() => (style = st.id)}>
+            <button type="button" aria-pressed={style === st.id} onclick={() => (style = st.id)}>
               <span class="style-top">
                 <span class="kind-name">{st.name}</span>
                 <span class="num weights">
@@ -364,7 +364,7 @@
     font-size: 0.8rem;
     color: var(--color-text-muted);
   }
-  .styles button[aria-checked='true'] .weights {
+  .styles button[aria-pressed='true'] .weights {
     color: var(--color-accent);
   }
   .kinds button,
@@ -385,7 +385,7 @@
     border-color: var(--color-text-muted);
   }
   .kinds button[aria-pressed='true'],
-  .styles button[aria-checked='true'] {
+  .styles button[aria-pressed='true'] {
     border-color: var(--color-accent);
     box-shadow: inset 0 0 0 1px var(--color-accent);
   }
@@ -393,7 +393,7 @@
     font-weight: var(--weight-bold);
   }
   .kinds button[aria-pressed='true'] .kind-name,
-  .styles button[aria-checked='true'] .kind-name {
+  .styles button[aria-pressed='true'] .kind-name {
     color: var(--color-accent);
   }
   .kind-tag {
