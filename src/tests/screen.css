@@ -1,0 +1,68 @@
+/* Shared layout for full-screen test views (flick, tracking). */
+
+.test-stage {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  background: var(--color-bg);
+}
+.test-stage canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.test-crosshair {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  transform: translate(-50%, -50%);
+  /* Open centre so the home dot stays visible under the crosshair. */
+  background:
+    linear-gradient(var(--color-text) 35%, transparent 35% 65%, var(--color-text) 65%) center / 2px 100% no-repeat,
+    linear-gradient(to right, var(--color-text) 35%, transparent 35% 65%, var(--color-text) 65%) center / 100% 2px
+      no-repeat;
+  opacity: 0.85;
+  pointer-events: none;
+}
+.test-hint {
+  position: absolute;
+  left: 50%;
+  top: calc(50% + 28px);
+  transform: translateX(-50%);
+  color: var(--color-text-muted);
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+.test-hud {
+  position: absolute;
+  top: 12px;
+  left: 16px;
+  font-size: 0.875rem;
+  pointer-events: none;
+}
+.test-panel {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0.75rem;
+  width: min(440px, calc(100% - 32px));
+  padding: 1.25rem;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-card);
+}
+.test-panel.wide {
+  width: min(640px, calc(100% - 32px));
+}
+.test-panel h2 {
+  font-size: 1.35rem;
+}
+.test-go {
+  color: var(--color-accent);
+  font-weight: var(--weight-bold);
+}

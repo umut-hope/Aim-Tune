@@ -22,7 +22,8 @@
   import { FlickScene } from '../scene/flick-scene'
   import { PointerLockInput, type RawInput } from '../scene/pointer-lock'
   import { formatNumber } from '../ui/links'
-  import Ruler from '../ui/Ruler.svelte'
+  import RoundSummary from './RoundSummary.svelte'
+  import './screen.css'
   import {
     activeCm360,
     click,
@@ -66,7 +67,6 @@
   const info = $derived(hud(flow))
   const unitLabel = $derived(config.unit === 'cm' ? 'cm/360' : 'in/360')
   const dist = (cm: number) => formatNumber(fromCm(cm, config.unit), 1)
-  const pct = (x: number) => `${x >= 0 ? '+' : '−'}${Math.abs(x * 100).toFixed(1)}%`
 
   onMount(() => {
     scene = new FlickScene(canvas)
@@ -157,14 +157,14 @@
   }
 </script>
 
-<div class="stage" bind:this={stage}>
+<div class="test-stage" bind:this={stage}>
   <canvas bind:this={canvas}></canvas>
 
-  <div class="crosshair" aria-hidden="true"></div>
+  <div class="test-crosshair" aria-hidden="true"></div>
   {#if flow.phase === 'waiting' && !onHome}
-    <p class="hint">Return to the white dot</p>
+    <p class="test-hint">Return to the white dot</p>
   {/if}
-  <p class="hud num">
+  <p class="test-hud num">
     {#if info.warmup}Warm-up{:else}Round {info.round}/{info.rounds}{/if}
     · Shot {info.shot}/{info.shots}
     {#if info.cm360 !== null}· {dist(info.cm360)} {unitLabel}{/if}
@@ -172,7 +172,7 @@
   </p>
 
   {#if flow.phase === 'ready'}
-    <div class="panel" role="status">
+    <div class="test-panel" role="status">
       <h2>{flow.block?.kind === 'warmup' ? 'Warm-up' : `Round ${info.round} of ${info.rounds}`}</h2>
       {#if flow.block?.kind === 'warmup'}
         <p>A few practice shots, not scored.</p>
@@ -184,7 +184,7 @@
         Aim at the white dot. When a yellow target appears, flick to it and click once. Then come back to the dot.
       </p>
       {#if locked}
-        <p class="go">Click to start</p>
+        <p class="test-go">Click to start</p>
       {:else}
         <button class="btn btn-primary" onclick={lockMouse}>Lock mouse and start</button>
       {/if}
@@ -195,45 +195,12 @@
       </p>
     </div>
   {:else if flow.phase === 'round-summary' && flow.lastRound}
-    {@const r = flow.lastRound}
-    {@const better = r.winner ? r[r.winner] : null}
-    <div class="panel wide" role="status">
-      <h2>Round {r.round + 1} done</h2>
-      <Ruler
-        unit={config.unit}
-        summary="The two distances tested this round, inside the range searched so far"
-        fit
-        band={r.range}
-        bandTone="soft"
-        markers={[r.low, r.high].map((b) => ({
-          cm: b.cm360,
-          label: `${dist(b.cm360)}${r.winner === b.side ? ' · better' : ''}`,
-          tone: r.winner === b.side ? 'accent' : 'muted',
-        }))}
-      />
-      {#if better}
-        <p>
-          <span class="num">{dist(better.cm360)} {unitLabel}</span> scored better{r.decidedBy === 'bias'
-            ? ' (scores were close, so your over/undershoot decided)'
-            : ''}.
-        </p>
-      {:else}
-        <p>Both distances scored about the same.</p>
-      {/if}
-      <ul class="bias-list">
-        {#each [r.low, r.high] as b (b.side)}
-          <li class="num">
-            {dist(b.cm360)}:
-            <span class={b.summary.bias >= 0 ? 'over' : 'under'}>
-              {pct(b.summary.bias)} {b.summary.bias >= 0 ? 'overshoot' : 'undershoot'}
-            </span>
-          </li>
-        {/each}
-      </ul>
-      <p class="go">Click to continue</p>
+    <div class="test-panel wide" role="status">
+      <RoundSummary round={flow.lastRound} unit={config.unit} kind="flick" />
+      <p class="test-go">Click to continue</p>
     </div>
   {:else if flow.phase === 'paused'}
-    <div class="panel" role="dialog" aria-label="Paused">
+    <div class="test-panel" role="dialog" aria-label="Paused">
       <h2>Paused</h2>
       {#if lockError}<p class="form-error">{lockError}</p>{/if}
       <button class="btn btn-primary" onclick={resumeTest}>Resume</button>
@@ -242,87 +209,3 @@
     </div>
   {/if}
 </div>
-
-<style>
-  .stage {
-    position: fixed;
-    inset: 0;
-    z-index: 20;
-    background: var(--color-bg);
-  }
-  canvas {
-    display: block;
-    width: 100%;
-    height: 100%;
-  }
-  .crosshair {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    width: 20px;
-    height: 20px;
-    transform: translate(-50%, -50%);
-    /* Open centre so the home dot stays visible under the crosshair. */
-    background:
-      linear-gradient(var(--color-text) 35%, transparent 35% 65%, var(--color-text) 65%) center / 2px 100% no-repeat,
-      linear-gradient(to right, var(--color-text) 35%, transparent 35% 65%, var(--color-text) 65%) center / 100% 2px
-        no-repeat;
-    opacity: 0.85;
-    pointer-events: none;
-  }
-  .hint {
-    position: absolute;
-    left: 50%;
-    top: calc(50% + 28px);
-    transform: translateX(-50%);
-    color: var(--color-text-muted);
-    font-size: 0.875rem;
-    pointer-events: none;
-  }
-  .hud {
-    position: absolute;
-    top: 12px;
-    left: 16px;
-    font-size: 0.875rem;
-    pointer-events: none;
-  }
-  .panel {
-    position: absolute;
-    left: 50%;
-    top: 50%;
-    transform: translate(-50%, -50%);
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.75rem;
-    width: min(440px, calc(100% - 32px));
-    padding: 1.25rem;
-    background: var(--color-surface);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-card);
-  }
-  .panel.wide {
-    width: min(640px, calc(100% - 32px));
-  }
-  .panel h2 {
-    font-size: 1.35rem;
-  }
-  .go {
-    color: var(--color-accent);
-    font-weight: var(--weight-bold);
-  }
-  .bias-list {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.25rem 1.25rem;
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 0.9rem;
-  }
-  .over {
-    color: var(--color-overshoot);
-  }
-  .under {
-    color: var(--color-undershoot);
-  }
-</style>
