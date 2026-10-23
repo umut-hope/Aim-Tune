@@ -1,25 +1,175 @@
-<!-- Temporary: shows the dev flick test until the setup and results screens exist. -->
 <script lang="ts">
-  import FlickHarness from './dev/FlickHarness.svelte'
+  import type { Component } from 'svelte'
+  import type { SearchResult } from './core/search'
+  import type { DistanceUnit } from './core/units'
+  import { gamesLoader, type Game } from './data/games'
+  import type { FlickTestConfig } from './tests/FlickTest.svelte'
+  import Footer from './ui/Footer.svelte'
   import Header from './ui/Header.svelte'
+  import HowItWorks from './ui/HowItWorks.svelte'
+  import { parseResultParams, parseSetupParams, resultQuery } from './ui/links'
+  import { getStorage, loadUnit, saveUnit } from './ui/prefs'
+  import { loadProfile } from './ui/profile'
+  import Results, { type ResultData } from './ui/Results.svelte'
+  import Setup from './ui/Setup.svelte'
+  import { DEFAULT_FORM, prefillForm, type SetupForm, type StartConfig } from './ui/setup'
 
-  // Header and promo are hidden while a test runs, so nothing distracts from aiming.
-  let running = $state(false)
+  type Route = 'test' | 'how'
+  type Screen = 'setup' | 'test' | 'results'
+
+  // Hash routing keeps GitHub Pages happy: every page is served from index.html.
+  const readRoute = (): Route => (location.hash.startsWith('#/how') ? 'how' : 'test')
+
+  let route = $state<Route>(readRoute())
+  let unit = $state<DistanceUnit>(loadUnit())
+
+  let games = $state.raw<Game[]>([])
+  let gamesError = $state<string | null>(null)
+  let form = $state<SetupForm>({ ...DEFAULT_FORM })
+
+  // A shared result link opens straight on the results screen.
+  const shared = parseResultParams(location.search)
+  let screen = $state<Screen>(shared ? 'results' : 'setup')
+  let result = $state.raw<ResultData | null>(
+    shared
+      ? {
+          range: { lo: shared.lo, hi: shared.hi },
+          current: shared.current ?? null,
+          gameId: shared.game ?? null,
+          dpi: shared.dpi ?? null,
+          edge: shared.edge ?? null,
+          rounds: null,
+        }
+      : null,
+  )
+
+  let startConfig = $state.raw<StartConfig | null>(null)
+  let testRun = $state(0)
+  let FlickTest = $state.raw<Component<{
+    config: FlickTestConfig
+    onDone: (r: SearchResult) => void
+    onQuit: () => void
+  }> | null>(null)
+  let loadError = $state<string | null>(null)
+
+  /** The test (with three.js) is a separate chunk, fetched ahead of time from the setup screen. */
+  let testModule: Promise<void> | null = null
+  function loadTest(): Promise<void> {
+    testModule ??= import('./tests/FlickTest.svelte')
+      .then((m) => {
+        FlickTest = m.default
+      })
+      .catch((e: unknown) => {
+        testModule = null
+        loadError = e instanceof Error ? e.message : String(e)
+      })
+    return testModule
+  }
+
+  $effect(() => {
+    const onHashChange = () => {
+      route = readRoute()
+      window.scrollTo(0, 0)
+    }
+    window.addEventListener('hashchange', onHashChange)
+    return () => window.removeEventListener('hashchange', onHashChange)
+  })
+
+  $effect(() => {
+    document.title = route === 'how' ? 'How it works · aimtune' : 'aimtune · mouse sensitivity finder'
+  })
+
+  // Prefill: URL first, then the saved profile.
+  gamesLoader.load().then((r) => {
+    if (r.ok) {
+      games = r.games
+      const known = (id: string) => r.games.some((g) => g.id === id)
+      form = prefillForm([parseSetupParams(location.search), loadProfile(getStorage())], known)
+    } else {
+      gamesError = r.error.message
+    }
+  })
+
+  function setUnit(u: DistanceUnit) {
+    unit = u
+    saveUnit(u)
+  }
+
+  async function start(config: StartConfig) {
+    startConfig = config
+    loadError = null
+    await loadTest()
+    if (FlickTest) {
+      testRun++
+      screen = 'test'
+    }
+  }
+
+  function done(r: SearchResult) {
+    const config = startConfig
+    result = {
+      range: r.range,
+      current: config?.current ?? null,
+      gameId: config?.gameId ?? null,
+      dpi: config?.dpi ?? null,
+      edge: r.edge,
+      rounds: r.rounds,
+    }
+    screen = 'results'
+    // Reloading the page keeps the result (without round details).
+    const q = resultQuery({
+      lo: r.range.lo,
+      hi: r.range.hi,
+      ...(config?.current != null ? { current: config.current } : {}),
+      ...(config?.gameId ? { game: config.gameId } : {}),
+      ...(config ? { dpi: config.dpi } : {}),
+      ...(r.edge ? { edge: r.edge } : {}),
+    })
+    history.replaceState(null, '', `${import.meta.env.BASE_URL}${q}#/`)
+    window.scrollTo(0, 0)
+  }
+
+  function retest() {
+    if (!startConfig) return
+    testRun++
+    screen = 'test'
+  }
+
+  function newTest() {
+    screen = 'setup'
+    history.replaceState(null, '', `${import.meta.env.BASE_URL}#/`)
+    window.scrollTo(0, 0)
+  }
+
+  const testConfig = $derived<FlickTestConfig | null>(
+    startConfig ? { dpi: startConfig.dpi, view: startConfig.view, initial: startConfig.initial, unit } : null,
+  )
 </script>
 
-{#if !running}
-  <div class="header-layer">
-    <Header />
-  </div>
+{#if screen === 'test' && route === 'test' && FlickTest && testConfig}
+  <!-- Header, promo and footer are hidden while a test runs. -->
+  {#key testRun}
+    <FlickTest config={testConfig} onDone={done} onQuit={newTest} />
+  {/key}
+{:else}
+  <Header {route} />
+  <main class="page">
+    {#if route === 'how'}
+      <HowItWorks />
+    {:else if screen === 'results' && result}
+      <Results
+        {result}
+        {games}
+        {unit}
+        onRetest={startConfig ? retest : null}
+        onNewTest={newTest}
+      />
+    {:else}
+      <Setup {games} {gamesError} bind:form {unit} onUnitChange={setUnit} onStart={start} preload={loadTest} />
+      {#if loadError}
+        <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
+      {/if}
+    {/if}
+  </main>
+  <Footer />
 {/if}
-
-<FlickHarness bind:running />
-
-<style>
-  .header-layer {
-    position: fixed;
-    inset: 0 0 auto;
-    z-index: 5;
-    background: linear-gradient(var(--color-bg) 40%, transparent);
-  }
-</style>

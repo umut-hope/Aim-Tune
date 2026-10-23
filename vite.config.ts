@@ -5,6 +5,10 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   base: '/Aim-Tune/',
   plugins: [svelte()],
+  build: {
+    // three.js lives in the lazily loaded test chunk (~545 kB); the first page stays small.
+    chunkSizeWarningLimit: 600,
+  },
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
