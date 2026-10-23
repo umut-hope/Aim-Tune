@@ -6,6 +6,8 @@
  * right axis (positive looks up). All public angles are in degrees.
  */
 
+import { maxOnScreenAngle, type View } from './view'
+
 export type Vec3 = readonly [number, number, number]
 
 const DEG = Math.PI / 180
@@ -137,13 +139,20 @@ export function flickError(start: Vec3, target: Vec3, click: Vec3): FlickError {
 export interface TargetSpecOptions {
   /** Smallest flick angle in degrees. Default 20. */
   minAngle?: number
-  /** Largest flick angle in degrees. Default 90. */
+  /** Largest flick angle in degrees. Default 90; further limited by `view`. */
   maxAngle?: number
   /**
    * Largest tilt of the flick direction away from horizontal, in degrees.
    * Default 30: flicks are mostly left/right, as in most shooters.
    */
   maxTilt?: number
+  /**
+   * The test camera's view. When set, targets always appear on screen: the
+   * flick is aimed at something the player can see, as in a real fight.
+   */
+  view?: View
+  /** Share of the half-screen targets may use, with `view`. Default 0.9. */
+  edgeMargin?: number
 }
 
 export interface TargetSpec {
@@ -152,7 +161,13 @@ export interface TargetSpec {
   directionDeg: number
 }
 
-/** Random flick angle and screen direction. `rng` returns values in [0, 1). */
+/**
+ * Random flick angle and screen direction. `rng` returns values in [0, 1).
+ *
+ * With a `view`, the angle is capped so the target stays on screen in the
+ * chosen direction. If the view is too narrow for `minAngle`, the lower bound
+ * drops to half the cap rather than placing targets off screen.
+ */
 export function randomTargetSpec(rng: () => number, options: TargetSpecOptions = {}): TargetSpec {
   const minAngle = options.minAngle ?? 20
   const maxAngle = options.maxAngle ?? 90
@@ -163,8 +178,16 @@ export function randomTargetSpec(rng: () => number, options: TargetSpecOptions =
   if (!(maxTilt >= 0 && maxTilt <= 90)) {
     throw new RangeError(`maxTilt must be between 0 and 90, got ${maxTilt}`)
   }
-  const angleDeg = minAngle + rng() * (maxAngle - minAngle)
+
   const tilt = (rng() * 2 - 1) * maxTilt
   const directionDeg = rng() < 0.5 ? tilt : 180 - tilt
+
+  let hi = maxAngle
+  let lo = minAngle
+  if (options.view) {
+    hi = Math.min(hi, maxOnScreenAngle(options.view, directionDeg, options.edgeMargin ?? 0.9))
+    if (hi < lo) lo = hi / 2
+  }
+  const angleDeg = lo + rng() * (hi - lo)
   return { angleDeg, directionDeg }
 }

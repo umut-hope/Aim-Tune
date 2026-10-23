@@ -8,6 +8,7 @@ import {
   type Vec3,
 } from './angles'
 import { seededRng } from './testing/simulated-player'
+import { isOnScreen, resolveView } from './view'
 
 const FORWARD: Vec3 = [0, 0, -1]
 
@@ -113,6 +114,31 @@ describe('randomTargetSpec', () => {
     }
     expect(left).toBeGreaterThan(200)
     expect(left).toBeLessThan(300)
+  })
+
+  it('keeps every target on screen when given a view', () => {
+    const rng = seededRng(11)
+    const view = resolveView({ gameFov: { default: 90, type: 'horizontal-4:3', adjustable: false }, aspect: 16 / 9 })
+    let maxSeen = 0
+    for (let i = 0; i < 1000; i++) {
+      const { angleDeg, directionDeg } = randomTargetSpec(rng, { view })
+      expect(isOnScreen(view, angleDeg, directionDeg, 0.9)).toBe(true)
+      expect(angleDeg).toBeGreaterThanOrEqual(20)
+      maxSeen = Math.max(maxSeen, angleDeg)
+    }
+    // ~106° horizontal: the side edge is at 53°, so flicks no longer reach 90°.
+    expect(maxSeen).toBeGreaterThan(45)
+    expect(maxSeen).toBeLessThan(60)
+  })
+
+  it('lowers the minimum instead of going off screen in a very narrow view', () => {
+    const rng = seededRng(3)
+    const view = { verticalFov: 20, aspect: 16 / 9 } // about 35° horizontal
+    for (let i = 0; i < 200; i++) {
+      const { angleDeg, directionDeg } = randomTargetSpec(rng, { view })
+      expect(isOnScreen(view, angleDeg, directionDeg, 0.9)).toBe(true)
+      expect(angleDeg).toBeGreaterThan(0)
+    }
   })
 
   it('rejects invalid options', () => {

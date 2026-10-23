@@ -9,7 +9,7 @@
  * overshoots and a too-low sens undershoots. On top of that come motor noise,
  * gradual adaptation within a block and occasional lapses.
  */
-import { randomTargetSpec } from '../angles'
+import { randomTargetSpec, type TargetSpecOptions } from '../angles'
 import type { Shot } from '../scoring'
 import type { BlockRequest } from '../search'
 
@@ -76,11 +76,16 @@ export function makePlayer(
  * Simulates one block of flicks at the requested cm/360. The player's internal
  * model starts each block at their preferred distance and adapts within it.
  */
-export function simulateBlock(player: PlayerProfile, request: BlockRequest, rng: () => number): Shot[] {
+export function simulateBlock(
+  player: PlayerProfile,
+  request: BlockRequest,
+  rng: () => number,
+  targets: TargetSpecOptions = {},
+): Shot[] {
   const shots: Shot[] = []
   let model = player.preferredCm360
   for (let i = 0; i < request.shots; i++) {
-    const { angleDeg } = randomTargetSpec(rng)
+    const { angleDeg } = randomTargetSpec(rng, targets)
     const timeMs = Math.max(
       120,
       player.baseTimeMs + player.timePerDegMs * angleDeg + gaussian(rng) * player.timeNoiseMs,

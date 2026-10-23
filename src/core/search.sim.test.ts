@@ -6,15 +6,22 @@
  */
 import { describe, expect, it } from 'vitest'
 import { createSearch, initialRange, nextBlock, searchResult, submitBlock, type SearchOptions, type SearchResult } from './search'
+import type { TargetSpecOptions } from './angles'
 import { makePlayer, seededRng, simulateBlock, type PlayerProfile } from './testing/simulated-player'
+import { resolveView } from './view'
 
 const SEEDS = 300
 
-function runSearch(player: PlayerProfile, seed: number, options: SearchOptions = {}): SearchResult {
+function runSearch(
+  player: PlayerProfile,
+  seed: number,
+  options: SearchOptions = {},
+  targets: TargetSpecOptions = {},
+): SearchResult {
   const rng = seededRng(seed)
   let state = createSearch(options)
   for (let b = nextBlock(state); b; b = nextBlock(state)) {
-    state = submitBlock(state, simulateBlock(player, b, rng))
+    state = submitBlock(state, simulateBlock(player, b, rng, targets))
   }
   return searchResult(state)!
 }
@@ -30,13 +37,13 @@ interface Stats {
   edges: number
 }
 
-function evaluate(player: PlayerProfile, options: SearchOptions = {}): Stats {
+function evaluate(player: PlayerProfile, options: SearchOptions = {}, targets: TargetSpecOptions = {}): Stats {
   const errors: number[] = []
   let covered = 0
   let halfWidths = 0
   let edges = 0
   for (let seed = 1; seed <= SEEDS; seed++) {
-    const r = runSearch(player, seed, options)
+    const r = runSearch(player, seed, options, targets)
     errors.push(Math.abs(r.center / player.preferredCm360 - 1))
     if (r.range.lo <= player.preferredCm360 && player.preferredCm360 <= r.range.hi) covered++
     halfWidths += r.halfWidth
@@ -62,6 +69,16 @@ describe('simulated players', () => {
     expect(s.max).toBeLessThan(0.2)
     expect(s.coverage).toBeGreaterThan(0.75)
     expect(s.edges).toBe(0)
+  })
+
+  it.each([
+    ['a typical 16:9 view', resolveView({ gameFov: { default: 90, type: 'horizontal-4:3', adjustable: false }, aspect: 16 / 9 })],
+    ['a narrow 4:3 view', resolveView({ gameFov: { default: 80, type: 'horizontal', adjustable: false }, aspect: 4 / 3 })],
+  ])('still converges with targets kept on screen in %s', (_label, view) => {
+    const s = evaluate(makePlayer(38), {}, { view })
+    expect(s.median).toBeLessThan(0.04)
+    expect(s.p90).toBeLessThan(0.07)
+    expect(s.coverage).toBeGreaterThan(0.75)
   })
 
   it('starts around the current sens and still finds a different preference', () => {
