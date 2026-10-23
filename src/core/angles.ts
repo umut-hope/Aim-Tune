@@ -19,6 +19,13 @@ const MIN_FLICK_DEG = 1e-6
 export const toRadians = (deg: number): number => deg * DEG
 export const toDegrees = (rad: number): number => rad / DEG
 
+/**
+ * Angular radius of a target sphere as seen from the camera, degrees. The scene
+ * sizes its spheres from this, and hit tests use it, so both always agree.
+ * 0.25 m at 10 m ≈ 1.43°.
+ */
+export const TARGET_ANGULAR_RADIUS_DEG = toDegrees(Math.atan(0.025))
+
 export function dot(a: Vec3, b: Vec3): number {
   return a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
 }

@@ -22,7 +22,7 @@ import {
   Vector3,
   WebGLRenderer,
 } from 'three'
-import type { Vec3 } from '../core/angles'
+import { TARGET_ANGULAR_RADIUS_DEG, toRadians, type Vec3 } from '../core/angles'
 import type { View } from '../core/view'
 import { SCENE_COLORS } from './palette'
 
@@ -36,7 +36,7 @@ const ROOM_HEIGHT = 12
  */
 const TARGET_DISTANCE = 10
 /** 0.25 m at 10 m ≈ 1.4° angular radius. */
-const TARGET_RADIUS = 0.25
+const TARGET_RADIUS = TARGET_DISTANCE * Math.tan(toRadians(TARGET_ANGULAR_RADIUS_DEG))
 /** 0.06 m at 10 m ≈ 0.34° angular radius. */
 const HOME_RADIUS = 0.06
 const MAX_PITCH = 89
@@ -59,7 +59,10 @@ export class FlickScene {
   private readonly renderer: WebGLRenderer
   private readonly scene = new Scene()
   private readonly camera = new PerspectiveCamera(70, 16 / 9, 0.05, 100)
-  private readonly target: Mesh
+  /** Target spheres, created on demand and reused. */
+  private readonly targets: Mesh[] = []
+  private readonly targetGeometry: SphereGeometry
+  private readonly targetMaterial: MeshBasicMaterial
   private readonly home: Mesh
   private readonly disposables: { dispose(): void }[] = []
   private view: View = { verticalFov: 70, aspect: 16 / 9 }
@@ -77,12 +80,9 @@ export class FlickScene {
 
     this.buildRoom()
 
-    const targetGeometry = new SphereGeometry(TARGET_RADIUS, 32, 16)
-    const targetMaterial = new MeshBasicMaterial({ color: SCENE_COLORS.accent })
-    this.disposables.push(targetGeometry, targetMaterial)
-    this.target = new Mesh(targetGeometry, targetMaterial)
-    this.target.visible = false
-    this.scene.add(this.target)
+    this.targetGeometry = new SphereGeometry(TARGET_RADIUS, 32, 16)
+    this.targetMaterial = new MeshBasicMaterial({ color: SCENE_COLORS.accent })
+    this.disposables.push(this.targetGeometry, this.targetMaterial)
 
     const homeGeometry = new SphereGeometry(HOME_RADIUS, 16, 8)
     const homeMaterial = new MeshBasicMaterial({ color: SCENE_COLORS.text })
@@ -163,14 +163,23 @@ export class FlickScene {
     return [v.x, v.y, v.z]
   }
 
-  /** Shows the target in a direction from the camera, or hides it with `null`. */
+  /** Shows one target in a direction from the camera, or hides all with `null`. */
   showTarget(direction: Vec3 | null): void {
-    if (!direction) {
-      this.target.visible = false
-      return
+    this.showTargets(direction ? [direction] : [])
+  }
+
+  /** Shows a target in each direction; any others are hidden. */
+  showTargets(directions: readonly Vec3[]): void {
+    while (this.targets.length < directions.length) {
+      const mesh = new Mesh(this.targetGeometry, this.targetMaterial)
+      this.targets.push(mesh)
+      this.scene.add(mesh)
     }
-    this.target.visible = true
-    this.place(this.target, direction)
+    this.targets.forEach((mesh, i) => {
+      const dir = directions[i]
+      mesh.visible = dir !== undefined
+      if (dir) this.place(mesh, dir)
+    })
   }
 
   /** Shows the white home dot the player returns to between shots, or hides it. */
