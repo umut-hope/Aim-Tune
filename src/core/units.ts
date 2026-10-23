@@ -2,7 +2,7 @@
  * Unit conversions. The conversion math itself lives in yawmatch and is only
  * re-exported here, so both sites always agree on the numbers.
  */
-import { degreesPerCount, sensFromCm360 } from 'yawmatch/src/core/convert'
+import { CM_PER_INCH, degreesPerCount, sensFromCm360 } from 'yawmatch/src/core/convert'
 
 export {
   CM_PER_INCH,
@@ -23,4 +23,17 @@ export {
  */
 export function degreesPerCountAtCm360(cm360: number, dpi: number): number {
   return degreesPerCount(sensFromCm360(cm360, dpi, 1), 1)
+}
+
+/** Unit for mouse travel distances shown to the player. */
+export type DistanceUnit = 'cm' | 'in'
+
+/** Converts a distance (e.g. per 360°) in `unit` to centimetres. */
+export function toCm(value: number, unit: DistanceUnit): number {
+  return unit === 'in' ? value * CM_PER_INCH : value
+}
+
+/** Converts centimetres to `unit`. */
+export function fromCm(cm: number, unit: DistanceUnit): number {
+  return unit === 'in' ? cm / CM_PER_INCH : cm
 }
