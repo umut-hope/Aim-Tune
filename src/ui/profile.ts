@@ -1,28 +1,26 @@
 /**
  * Player profile shared with yawmatch (same origin, same localStorage).
  *
- * `shared:profile` = { dpi, mainGame, sens } is the common format. yawmatch's
- * own `yawmatch:profile` is read as a fallback so a player who used the
- * converter first does not have to type everything again. Both are validated
- * on read; anything malformed is ignored.
+ * `shared:profile` = { dpi, mainGame, sens } is the common format; its schema
+ * lives in yawmatch so both sites validate it the same way. yawmatch's own
+ * `yawmatch:profile` is read as a fallback for players who used the converter
+ * before it started writing the shared profile.
  */
 import { z } from 'zod'
+import {
+  SHARED_PROFILE_KEY,
+  SharedProfile,
+  parseSharedProfile,
+  serializeSharedProfile,
+} from 'yawmatch/src/core/shared-profile'
 
-export const SHARED_PROFILE_KEY = 'shared:profile'
+export { SHARED_PROFILE_KEY, SharedProfile }
+
 export const YAWMATCH_PROFILE_KEY = 'yawmatch:profile'
-
-const GameId = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(32)
-
-export const SharedProfile = z.object({
-  dpi: z.number().positive().max(100_000),
-  mainGame: GameId,
-  sens: z.number().positive().max(10_000),
-})
-export type SharedProfile = z.infer<typeof SharedProfile>
 
 /** yawmatch stores what the player typed, as strings. */
 const YawmatchProfile = z.object({
-  from: GameId.optional(),
+  from: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(32).optional(),
   sens: z.string().max(32).optional(),
   dpi: z.string().max(32).optional(),
 })
@@ -33,10 +31,9 @@ export interface ProfileValues {
   dpi?: number
 }
 
-function readJson(storage: Pick<Storage, 'getItem'> | undefined, key: string): unknown {
+function read(storage: Pick<Storage, 'getItem'> | undefined, key: string): string | null {
   try {
-    const raw = storage?.getItem(key)
-    return raw ? (JSON.parse(raw) as unknown) : null
+    return storage?.getItem(key) ?? null
   } catch {
     return null
   }
@@ -50,12 +47,16 @@ const positive = (s: string | undefined): number | undefined => {
 
 /** Saved values, from the shared profile first, then yawmatch's own. */
 export function loadProfile(storage: Pick<Storage, 'getItem'> | undefined): ProfileValues {
-  const shared = SharedProfile.safeParse(readJson(storage, SHARED_PROFILE_KEY))
-  if (shared.success) {
-    return { game: shared.data.mainGame, sens: shared.data.sens, dpi: shared.data.dpi }
-  }
+  const shared = parseSharedProfile(read(storage, SHARED_PROFILE_KEY))
+  if (shared) return { game: shared.mainGame, sens: shared.sens, dpi: shared.dpi }
 
-  const yawmatch = YawmatchProfile.safeParse(readJson(storage, YAWMATCH_PROFILE_KEY))
+  let parsed: unknown = null
+  try {
+    parsed = JSON.parse(read(storage, YAWMATCH_PROFILE_KEY) ?? 'null')
+  } catch {
+    return {}
+  }
+  const yawmatch = YawmatchProfile.safeParse(parsed)
   if (!yawmatch.success) return {}
   const out: ProfileValues = {}
   const sens = positive(yawmatch.data.sens)
@@ -66,12 +67,12 @@ export function loadProfile(storage: Pick<Storage, 'getItem'> | undefined): Prof
   return out
 }
 
-/** Writes the shared profile. Returns false if it could not be stored. */
+/** Writes the shared profile. Returns false if it is invalid or could not be stored. */
 export function saveProfile(storage: Pick<Storage, 'setItem'> | undefined, profile: SharedProfile): boolean {
-  const parsed = SharedProfile.safeParse(profile)
-  if (!parsed.success || !storage) return false
+  const value = serializeSharedProfile(profile)
+  if (value === null || !storage) return false
   try {
-    storage.setItem(SHARED_PROFILE_KEY, JSON.stringify(parsed.data))
+    storage.setItem(SHARED_PROFILE_KEY, value)
     return true
   } catch {
     return false

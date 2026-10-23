@@ -175,7 +175,7 @@
     </div>
     {#if saved === 'saved'}
       <p class="muted small" role="status">
-        Saved as {game?.name} sens <span class="num">{sens ? sensText(sens.mid) : ''}</span>. The next test here starts from it.
+        Saved as {game?.name} sens <span class="num">{sens ? sensText(sens.mid) : ''}</span>. yawmatch and the next test here will start from it.
       </p>
     {:else if saved === 'failed'}
       <p class="form-error" role="status">Could not save: your browser blocks local storage.</p>
