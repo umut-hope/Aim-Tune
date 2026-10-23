@@ -32,3 +32,22 @@ export function dismissPromo(days: number, now = Date.now(), storage = getStorag
     // Hidden for this visit only.
   }
 }
+
+export const UNIT_KEY = 'aimtune:unit'
+
+/** Saved distance unit; 'cm' unless the player chose inches before. */
+export function loadUnit(storage = getStorage()): 'cm' | 'in' {
+  try {
+    return storage?.getItem(UNIT_KEY) === 'in' ? 'in' : 'cm'
+  } catch {
+    return 'cm'
+  }
+}
+
+export function saveUnit(unit: 'cm' | 'in', storage = getStorage()): void {
+  try {
+    storage?.setItem(UNIT_KEY, unit)
+  } catch {
+    // Not remembered; still used for this visit.
+  }
+}

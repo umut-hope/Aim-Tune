@@ -84,3 +84,25 @@ export class PointerLockInput {
     document.removeEventListener('mousedown', this.onMouseDown)
   }
 }
+
+/**
+ * Checks raw input support by briefly locking the pointer, then releasing it.
+ * Must be called from a click. Returns 'unknown' if the lock was refused.
+ */
+export async function probeRawInput(element: HTMLElement): Promise<RawInput> {
+  const el = element as LockableElement
+  try {
+    const result = el.requestPointerLock({ unadjustedMovement: true })
+    if (result === undefined) {
+      // Older API: the lock may arrive after we return, so release it then.
+      document.addEventListener('pointerlockchange', () => document.exitPointerLock(), { once: true })
+      return 'unknown'
+    }
+    await result
+    return 'yes'
+  } catch (e) {
+    return e instanceof DOMException && e.name === 'NotSupportedError' ? 'no' : 'unknown'
+  } finally {
+    if (document.pointerLockElement === element) document.exitPointerLock()
+  }
+}
