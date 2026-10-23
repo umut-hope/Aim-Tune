@@ -6,6 +6,7 @@
  * from 100-seed runs with headroom.
  */
 import { describe, expect, it } from 'vitest'
+import { DEFAULT_MICRO_SHARE } from './angles'
 import { FULL_FLICK_SEARCH, FULL_TRACKING_SEARCH, STYLE_WEIGHTS, blendResults, type AimStyle } from './combined'
 import { createSearch, nextBlock, searchResult, submitBlock, submitSummary, type SearchResult } from './search'
 import { makePlayer, seededRng, simulateBlock, type PlayerProfile } from './testing/simulated-player'
@@ -19,7 +20,9 @@ const STYLES: readonly AimStyle[] = ['flicks', 'both', 'tracking']
 
 function flickPart(p: PlayerProfile, rng: () => number): SearchResult {
   let s = createSearch(FULL_FLICK_SEARCH)
-  for (let b = nextBlock(s); b; b = nextBlock(s)) s = submitBlock(s, simulateBlock(p, b, rng, { view }))
+  for (let b = nextBlock(s); b; b = nextBlock(s)) {
+    s = submitBlock(s, simulateBlock(p, b, rng, { view, microShare: DEFAULT_MICRO_SHARE }))
+  }
   return searchResult(s)!
 }
 

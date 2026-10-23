@@ -22,7 +22,7 @@ export interface SkillWeights {
 
 /** Blend weights per style; each pair adds up to 1. */
 export const STYLE_WEIGHTS: Readonly<Record<AimStyle, SkillWeights>> = {
-  flicks: { flick: 0.8, tracking: 0.2 },
+  flicks: { flick: 0.85, tracking: 0.15 },
   both: { flick: 0.6, tracking: 0.4 },
   tracking: { flick: 0.35, tracking: 0.65 },
 }
