@@ -20,6 +20,8 @@
 <script lang="ts">
   import { fromCm, sensFromCm360, type DistanceUnit } from '../core/units'
   import type { Game } from '../data/games'
+  import type { AbOption, AbOutcome } from '../tests/ab-flow'
+  import AbCard from './AbCard.svelte'
   import BiasChart from './BiasChart.svelte'
   import CopyButton from './CopyButton.svelte'
   import { formatNumber, resultQuery, yawmatchLink } from './links'
@@ -34,9 +36,11 @@
     /** Retest with the same settings; null when there are none (shared link). */
     onRetest: (() => void) | null
     onNewTest: () => void
+    abOutcome: AbOutcome | null
+    onAbTest: (first: AbOption, second: AbOption, blind: boolean) => void
   }
 
-  let { result, games, unit, onRetest, onNewTest }: Props = $props()
+  let { result, games, unit, onRetest, onNewTest, abOutcome, onAbTest }: Props = $props()
 
   let saved = $state<'idle' | 'saved' | 'failed'>('idle')
 
@@ -141,6 +145,15 @@
     {:else if !game && result.gameId === null}
       <p class="muted">Pick your game on the setup screen next time to see this as an in-game sens.</p>
     {/if}
+
+    <AbCard
+      range={result.range}
+      current={result.current}
+      dpi={result.dpi}
+      {unit}
+      outcome={abOutcome}
+      onStart={onAbTest}
+    />
 
     {#if result.rounds && result.rounds.length > 0}
       <div class="card">

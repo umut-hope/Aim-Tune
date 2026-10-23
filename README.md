@@ -23,6 +23,8 @@ and narrows it down. At the end you get:
 - the range where you were most consistent, in cm/360 (or in/360) and in your game's sens
 - your current setting on the same ruler, so you can see how far off it is
 - how much you overshot or undershot in each round
+- an optional **A/B feel test**: aim freely and switch between two settings (for example your current one and
+  the recommended one) with Space, blind if you like, then pick the one that feels better
 - a link to convert the result to other games in [yawmatch](https://umut-hope.github.io/Yaw-Match/), and a
   result link you can share
 
@@ -75,7 +77,7 @@ Project layout:
 src/
   core/     pure logic: angle errors, scoring, range search, FOV (tested, no DOM)
   scene/    three.js room, targets and pointer lock input
-  tests/    flick test flow (state machine) and its screen
+  tests/    flick test and A/B test: flows (state machines) and their screens
   ui/       setup, results and other Svelte screens
   data/     game list loader with Zod validation
 ```

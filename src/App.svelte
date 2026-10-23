@@ -2,7 +2,10 @@
   import type { Component } from 'svelte'
   import type { SearchResult } from './core/search'
   import type { DistanceUnit } from './core/units'
+  import { resolveView } from './core/view'
   import { gamesLoader, type Game } from './data/games'
+  import type { AbOption, AbOutcome } from './tests/ab-flow'
+  import type { AbTestConfig } from './tests/AbTest.svelte'
   import type { FlickTestConfig } from './tests/FlickTest.svelte'
   import Footer from './ui/Footer.svelte'
   import Header from './ui/Header.svelte'
@@ -15,7 +18,7 @@
   import { DEFAULT_FORM, prefillForm, type SetupForm, type StartConfig } from './ui/setup'
 
   type Route = 'test' | 'how'
-  type Screen = 'setup' | 'test' | 'results'
+  type Screen = 'setup' | 'test' | 'results' | 'ab'
 
   // Hash routing keeps GitHub Pages happy: every page is served from index.html.
   const readRoute = (): Route => (location.hash.startsWith('#/how') ? 'how' : 'test')
@@ -66,6 +69,34 @@
     return testModule
   }
 
+  // A/B feel test, also a separate chunk; fetched while the results are on screen.
+  let AbTest = $state.raw<Component<{
+    config: AbTestConfig
+    onDone: (o: AbOutcome) => void
+    onQuit: () => void
+  }> | null>(null)
+  let abConfig = $state.raw<AbTestConfig | null>(null)
+  let abOutcome = $state.raw<AbOutcome | null>(null)
+  let abRun = $state(0)
+  let abModule: Promise<void> | null = null
+  function loadAb(): Promise<void> {
+    abModule ??= import('./tests/AbTest.svelte')
+      .then((m) => {
+        AbTest = m.default
+      })
+      .catch((e: unknown) => {
+        abModule = null
+        loadError = e instanceof Error ? e.message : String(e)
+      })
+    return abModule
+  }
+
+  $effect(() => {
+    if (screen !== 'results') return
+    const idle = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 1500))
+    idle(() => void loadAb())
+  })
+
   $effect(() => {
     const onHashChange = () => {
       route = readRoute()
@@ -107,6 +138,7 @@
 
   function done(r: SearchResult) {
     const config = startConfig
+    abOutcome = null
     result = {
       range: r.range,
       current: config?.current ?? null,
@@ -141,6 +173,31 @@
     window.scrollTo(0, 0)
   }
 
+  async function startAb(first: AbOption, second: AbOption, blind: boolean) {
+    if (!result || result.dpi === null) return
+    const game = games.find((g) => g.id === result?.gameId)
+    const view =
+      startConfig?.view ??
+      resolveView({ gameFov: game?.fov ?? null, aspect: window.screen.width / window.screen.height })
+    abConfig = { dpi: result.dpi, view, first, second, blind, unit }
+    loadError = null
+    await loadAb()
+    if (AbTest) {
+      abRun++
+      screen = 'ab'
+    }
+  }
+
+  function abDone(o: AbOutcome) {
+    abOutcome = o
+    screen = 'results'
+    window.scrollTo(0, 0)
+  }
+
+  function abQuit() {
+    screen = 'results'
+  }
+
   const testConfig = $derived<FlickTestConfig | null>(
     startConfig ? { dpi: startConfig.dpi, view: startConfig.view, initial: startConfig.initial, unit } : null,
   )
@@ -150,6 +207,10 @@
   <!-- Header, promo and footer are hidden while a test runs. -->
   {#key testRun}
     <FlickTest config={testConfig} onDone={done} onQuit={newTest} />
+  {/key}
+{:else if screen === 'ab' && route === 'test' && AbTest && abConfig}
+  {#key abRun}
+    <AbTest config={abConfig} onDone={abDone} onQuit={abQuit} />
   {/key}
 {:else}
   <Header {route} />
@@ -163,7 +224,12 @@
         {unit}
         onRetest={startConfig ? retest : null}
         onNewTest={newTest}
+        {abOutcome}
+        onAbTest={startAb}
       />
+      {#if loadError}
+        <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
+      {/if}
     {:else}
       <Setup {games} {gamesError} bind:form {unit} onUnitChange={setUnit} onStart={start} preload={loadTest} />
       {#if loadError}

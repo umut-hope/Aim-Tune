@@ -47,6 +47,16 @@
     </p>
   </section>
 
+  <section>
+    <h2>Compare by feel</h2>
+    <p>
+      Numbers are not everything. From the results you can start an A/B test: aim freely at still and moving targets
+      and press <kbd>Space</kbd> to switch between two settings, usually your current one and the middle of the
+      recommended range. In blind mode they are only called A and B until you choose, so expectations do not decide
+      for you. Hits are counted for context, but your choice is the result.
+    </p>
+  </section>
+
   <section class="tip">
     <p class="tip-title">What it cannot tell you</p>
     <ul>
@@ -91,6 +101,14 @@
   section {
     display: grid;
     gap: 0.6rem;
+  }
+  kbd {
+    padding: 0 0.3rem;
+    border: 1px solid var(--color-border);
+    border-radius: 4px;
+    background: var(--color-bg);
+    font-family: var(--font-mono);
+    font-size: 0.85em;
   }
   ol,
   ul {
