@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import { createSearch, initialRange, nextBlock, searchResult, submitBlock, type SearchOptions, type SearchResult } from './search'
 import { DEFAULT_MICRO_SHARE, type TargetSpecOptions } from './angles'
-import { makePlayer, seededRng, simulateBlock, type PlayerProfile } from './testing/simulated-player'
+import { HUMAN_EFFECTS, makePlayer, seededRng, simulateBlock, type PlayerProfile } from './testing/simulated-player'
 import { resolveView } from './view'
 
 const SEEDS = 300
@@ -146,5 +146,44 @@ describe('simulated players', () => {
       expect(r.edge === null || r.edge === side).toBe(true)
     }
     expect(flagged / SEEDS).toBeGreaterThan(0.85)
+  })
+})
+
+describe('human-like players (warm-up, form swings, bad blocks)', () => {
+  const view = resolveView({ gameFov: { default: 90, type: 'horizontal-4:3', adjustable: false }, aspect: 16 / 9 })
+
+  function humanRun(player: PlayerProfile, seed: number, options: SearchOptions): SearchResult {
+    const rng = seededRng(seed)
+    const session = { shots: 0 }
+    let state = createSearch(options)
+    for (let b = nextBlock(state); b; b = nextBlock(state)) {
+      state = submitBlock(state, simulateBlock(player, b, rng, { view, microShare: DEFAULT_MICRO_SHARE }, session))
+    }
+    return searchResult(state)!
+  }
+
+  it.each([
+    ['44 cm, starting around 42.9', 44, initialRange(42.9)],
+    ['38 cm, default range', 38, undefined],
+    ['25 cm, default range', 25, undefined],
+  ] as const)('gives similar results on two runs for a player at %s', (_label, preferred, initial) => {
+    const player = makePlayer(preferred, HUMAN_EFFECTS)
+    const options: SearchOptions = initial ? { initial } : {}
+    const errors: number[] = []
+    const gaps: number[] = []
+    let covered = 0
+    for (let seed = 1; seed <= 100; seed++) {
+      const a = humanRun(player, seed, options)
+      const b = humanRun(player, seed + 5000, options)
+      errors.push(Math.abs(Math.log(a.center / preferred)))
+      gaps.push(Math.abs(Math.log(a.center / b.center)))
+      if (a.range.lo <= preferred && preferred <= a.range.hi) covered++
+    }
+    errors.sort((x, y) => x - y)
+    gaps.sort((x, y) => x - y)
+    // 1-in-10 worst cases, in log units (0.18 ≈ 20%).
+    expect(errors[89]!).toBeLessThan(0.15)
+    expect(gaps[89]!).toBeLessThan(0.18)
+    expect(covered / 100).toBeGreaterThan(0.65)
   })
 })

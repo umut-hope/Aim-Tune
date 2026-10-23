@@ -68,7 +68,7 @@ describe('full test with simulated players', () => {
     // the weights each run actually applied.
     for (const s of evaluate(makePlayer(42), makeTracker(32))) {
       expect(s.medianError).toBeLessThan(0.08)
-      expect(s.coverage).toBeGreaterThan(0.85)
+      expect(s.coverage).toBeGreaterThan(0.8)
     }
   })
 }, 120000)

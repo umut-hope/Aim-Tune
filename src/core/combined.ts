@@ -31,8 +31,8 @@ export const STYLE_WEIGHTS: Readonly<Record<AimStyle, SkillWeights>> = {
   tracking: { flick: 0.35, tracking: 0.65 },
 }
 
-/** Flick part of the full test: shorter blocks than the flick-only test. */
-export const FULL_FLICK_SEARCH: Readonly<SearchOptions> = { rounds: 5, shotsPerBlock: 8, warmupShots: 6 }
+/** Flick part of the full test: the flick defaults. */
+export const FULL_FLICK_SEARCH: Readonly<SearchOptions> = {}
 
 /** Tracking part of the full test: fewer rounds than tracking-only, the same rules. */
 export const FULL_TRACKING_SEARCH: Readonly<SearchOptions> = {

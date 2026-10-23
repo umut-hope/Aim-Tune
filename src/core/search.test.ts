@@ -40,6 +40,40 @@ const block = (cm360: number, side: 'low' | 'high', relAlong: number, n = 10): B
   summary: summarizeBlock(shots(n, relAlong)),
 })
 
+describe('recovering from a wrong first round', () => {
+  /**
+   * Perfect player at 44 cm (above the middle of 20–60), except that round 1
+   * goes to the low side, as after a bad block.
+   */
+  function run(shrink: number) {
+    let s = createSearch({ warmupShots: 0, shrink })
+    for (let b = nextBlock(s); b; b = nextBlock(s)) {
+      const wrongFirstRound = b.round === 0
+      const relAlong = wrongFirstRound ? (b.side === 'low' ? 0 : 0.4) : 44 / b.cm360 - 1
+      s = submitBlock(s, shots(b.shots, relAlong))
+    }
+    return searchResult(s)!
+  }
+
+  it('cannot recover when every round halves the range', () => {
+    expect(run(0.5).range.hi).toBeLessThan(44)
+  })
+
+  it('undoes it when each round keeps part of the losing side', () => {
+    const r = run(0.65)
+    expect(r.range.lo).toBeLessThanOrEqual(44)
+    expect(r.range.hi).toBeGreaterThanOrEqual(44)
+  })
+
+  it('never leaves the starting range', () => {
+    let s = createSearch({ warmupShots: 0, shrink: 0.8 })
+    for (let b = nextBlock(s); b; b = nextBlock(s)) s = submitBlock(s, shots(b.shots, 90 / b.cm360 - 1))
+    expect(s.range.hi).toBeLessThanOrEqual(60 + 1e-9)
+    expect(s.range.lo).toBeGreaterThanOrEqual(20 - 1e-9)
+    expect(() => createSearch({ shrink: 1 })).toThrow(RangeError)
+  })
+})
+
 describe('searching without a bias tie-break', () => {
   const block = (cm360: number, side: 'low' | 'high', score: number, n = 5): BlockResult => ({
     cm360,
@@ -174,8 +208,8 @@ describe('search state machine', () => {
     expect(searchResult(createSearch())).toBeNull()
   })
 
-  it('halves the range (log scale) every round', () => {
-    const s = deterministicRun(40, createSearch({ warmupShots: 0 }))
+  it('halves the range (log scale) every round with shrink 0.5', () => {
+    const s = deterministicRun(40, createSearch({ warmupShots: 0, shrink: 0.5 }))
     const ratios = s.history.map((r) => r.range.hi / r.range.lo)
     for (let i = 1; i < ratios.length; i++) {
       expect(ratios[i]!).toBeCloseTo(Math.sqrt(ratios[i - 1]!), 9)
@@ -235,10 +269,10 @@ describe('searchResult', () => {
   })
 
   it('never reports a range narrower than ±minHalfWidth', () => {
-    const r = searchResult(deterministicRun(40, createSearch({ rounds: 8 })))!
+    const r = searchResult(deterministicRun(40, createSearch({ rounds: 8, shrink: 0.5 })))!
     expect(r.finalBracket.hi / r.finalBracket.lo).toBeLessThan(1.01)
-    expect(r.range.hi / r.center).toBeCloseTo(1.04, 6)
-    expect(r.center / r.range.lo).toBeCloseTo(1.04, 6)
+    expect(r.range.hi / r.center).toBeCloseTo(1.05, 6)
+    expect(r.center / r.range.lo).toBeCloseTo(1.05, 6)
   })
 
   it('flags when the optimum lies beyond the tested range', () => {

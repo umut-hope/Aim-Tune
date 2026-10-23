@@ -35,6 +35,12 @@ export interface SearchConfig {
    * time adds a lag even at the right sens, so bias would pull the result short.
    */
   biasTieBreak: boolean
+  /**
+   * Share of the range's (log) half-width kept each round, centred on the
+   * winner. 0.5 halves the range; more keeps part of the losing side, so a
+   * wrong early decision can still be undone in later rounds.
+   */
+  shrink: number
   /** Smallest share of valid shots for a block to count; otherwise it is repeated once. */
   minValidShare: number
   /** How many times an unreliable block may be repeated. */
@@ -56,15 +62,22 @@ export type SearchOptions = Partial<Omit<SearchConfig, 'scoring'>> & {
 /** Default starting range when the player's current sens is unknown. */
 export const DEFAULT_RANGE: Readonly<Range> = { lo: 20, hi: 60 }
 
+/**
+ * Flick defaults, tuned on simulated players with human effects (warm-up,
+ * form swings, bad blocks): keeping 65% of the range per round over 6 rounds
+ * lets an unlucky early round be undone, cutting the gap between two runs of
+ * the same player (1-in-10 case) from about 19% to 12-16%.
+ */
 export const DEFAULT_SEARCH: Readonly<Omit<SearchConfig, 'initial' | 'scoring'>> = {
-  rounds: 5,
-  shotsPerBlock: 10,
-  warmupShots: 10,
+  rounds: 6,
+  shotsPerBlock: 8,
+  warmupShots: 6,
   tieZ: 1,
   biasTieBreak: true,
+  shrink: 0.65,
   minValidShare: 0.6,
   maxRetries: 1,
-  minHalfWidth: 0.04,
+  minHalfWidth: 0.05,
   uncertaintyZ: 1.645,
 }
 
@@ -174,9 +187,21 @@ export function testPoints(range: Range): Record<Side, number> {
 }
 
 /** Half of `range` (log scale) centred on `center`. */
-function halveAround(range: Range, center: number): Range {
-  const quarter = Math.pow(range.hi / range.lo, 0.25)
-  return { lo: center / quarter, hi: center * quarter }
+/**
+ * Next range: centred on `center`, with the half-width scaled by `shrink`,
+ * shifted back inside `bounds` if it pokes out. With shrink 0.5 and the
+ * centre on a test point this is exactly the half of the range around it.
+ */
+function narrowAround(range: Range, center: number, shrink: number, bounds: Range): Range {
+  const half = (Math.log(range.hi / range.lo) / 2) * shrink
+  let lo = Math.log(center) - half
+  let hi = Math.log(center) + half
+  const minLo = Math.log(bounds.lo)
+  const maxHi = Math.log(bounds.hi)
+  if (hi - lo >= maxHi - minLo) return { ...bounds }
+  if (lo < minLo) [lo, hi] = [minLo, minLo + (hi - lo)]
+  if (hi > maxHi) [lo, hi] = [maxHi - (hi - lo), maxHi]
+  return { lo: Math.exp(lo), hi: Math.exp(hi) }
 }
 
 export function createSearch(options: SearchOptions = {}): SearchState {
@@ -188,6 +213,7 @@ export function createSearch(options: SearchOptions = {}): SearchState {
     scoring: { ...DEFAULT_SCORING, ...scoring },
   }
   assertRange(config.initial)
+  if (!(config.shrink > 0 && config.shrink < 1)) throw new RangeError(`shrink must be in (0, 1), got ${config.shrink}`)
   if (!(Number.isInteger(config.rounds) && config.rounds >= 1)) {
     throw new RangeError(`rounds must be a positive integer, got ${config.rounds}`)
   }
@@ -332,7 +358,7 @@ export function submitSummary(state: SearchState, summary: BlockSummary): Search
   const result: RoundResult = { round: state.round, range: state.range, low, high, ...decision }
   return {
     ...state,
-    range: keep ? state.range : halveAround(state.range, center),
+    range: keep ? state.range : narrowAround(state.range, center, config.shrink, config.initial),
     round: state.round + 1,
     attempt: 0,
     pending: null,

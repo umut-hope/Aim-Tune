@@ -272,4 +272,6 @@ export const TRACKING_SEARCH: Readonly<SearchOptions> = {
   warmupShots: 2,
   tieZ: 1.25,
   biasTieBreak: false,
+  // Tracking keeps undecided rounds' range instead, so it halves when it does decide.
+  shrink: 0.5,
 }
