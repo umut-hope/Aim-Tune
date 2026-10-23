@@ -19,6 +19,7 @@
   import HowItWorks from './ui/HowItWorks.svelte'
   import { parseResultParams, parseSetupParams, resultQuery } from './ui/links'
   import { getStorage, loadUnit, saveUnit } from './ui/prefs'
+  import { addToHistory, clearHistory, loadHistory, type HistoryEntry } from './ui/history'
   import { loadProfile } from './ui/profile'
   import Results, { type ResultData } from './ui/Results.svelte'
   import Setup from './ui/Setup.svelte'
@@ -70,6 +71,9 @@
         }
       : null,
   )
+
+  /** This browser's recent runs; not shown for someone else's shared link. */
+  let pastRuns = $state.raw<HistoryEntry[]>(shared ? [] : loadHistory(getStorage()))
 
   let startConfig = $state.raw<StartConfig | null>(null)
   let testRun = $state(0)
@@ -231,6 +235,13 @@
       }
     }
     screen = 'results'
+    pastRuns = addToHistory(getStorage(), {
+      at: new Date().toISOString(),
+      kind: result.kind,
+      lo: result.range.lo,
+      hi: result.range.hi,
+      center: Math.sqrt(result.range.lo * result.range.hi),
+    })
     // Reloading the page keeps the result (without round details).
     const res = result
     const q = resultQuery({
@@ -330,6 +341,11 @@
         onRetestBeyond={startConfig ? retestBeyond : null}
         {abOutcome}
         onAbTest={startAb}
+        history={pastRuns}
+        onClearHistory={() => {
+          clearHistory(getStorage())
+          pastRuns = []
+        }}
       />
       {#if loadError}
         <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>

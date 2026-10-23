@@ -42,6 +42,8 @@
   import type { AbOption, AbOutcome } from '../tests/ab-flow'
   import AbCard from './AbCard.svelte'
   import BiasChart from './BiasChart.svelte'
+  import HistoryCard from './HistoryCard.svelte'
+  import { combineRecent, type HistoryEntry } from './history'
   import CopyButton from './CopyButton.svelte'
   import { formatNumber, resultQuery, yawmatchLink } from './links'
   import { getStorage } from './prefs'
@@ -58,10 +60,16 @@
     /** Retest from the edge the result hit; null when there are no settings (shared link). */
     onRetestBeyond: ((edge: Side) => void) | null
     abOutcome: AbOutcome | null
+    /** This browser's recent runs, newest first (empty for someone else's shared link). */
+    history: readonly HistoryEntry[]
+    onClearHistory: () => void
     onAbTest: (first: AbOption, second: AbOption, blind: boolean) => void
   }
 
-  let { result, games, unit, onRetest, onNewTest, onRetestBeyond, abOutcome, onAbTest }: Props = $props()
+  let { result, games, unit, onRetest, onNewTest, onRetestBeyond, abOutcome, onAbTest, history, onClearHistory }: Props =
+    $props()
+
+  const combined = $derived(combineRecent(history))
 
   let saved = $state<'idle' | 'saved' | 'failed'>('idle')
 
@@ -177,6 +185,10 @@
       band={result.range}
       {markers}
     />
+
+    {#if combined}
+      <HistoryCard {combined} {unit} {game} dpi={result.dpi} onClear={onClearHistory} />
+    {/if}
 
     {#if result.blend}
       {@const b = result.blend}
