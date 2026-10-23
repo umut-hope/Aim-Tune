@@ -1,5 +1,12 @@
 <script lang="ts">
   import type { Component } from 'svelte'
+  import {
+    FULL_FLICK_SEARCH,
+    FULL_TRACKING_SEARCH,
+    STYLE_WEIGHTS,
+    blendResults,
+    type AimStyle,
+  } from './core/combined'
   import { rangeBeyond, type SearchResult, type Side } from './core/search'
   import type { DistanceUnit } from './core/units'
   import { resolveView } from './core/view'
@@ -29,7 +36,8 @@
   let games = $state.raw<Game[]>([])
   let gamesError = $state<string | null>(null)
   let form = $state<SetupForm>({ ...DEFAULT_FORM })
-  let kind = $state<TestKind>('flick')
+  let kind = $state<TestKind>('full')
+  let style = $state<AimStyle>('both')
 
   // A shared result link opens straight on the results screen.
   const shared = parseResultParams(location.search)
@@ -44,6 +52,16 @@
           edge: shared.edge ?? null,
           kind: shared.test ?? 'flick',
           rounds: null,
+          blend:
+            shared.test === 'full' && shared.flick && shared.tracking
+              ? {
+                  style: shared.style ?? null,
+                  weights: shared.style ? STYLE_WEIGHTS[shared.style] : null,
+                  flick: shared.flick,
+                  tracking: shared.tracking,
+                  trackingRounds: null,
+                }
+              : null,
         }
       : null,
   )
@@ -55,15 +73,20 @@
     onDone: (r: SearchResult) => void
     onQuit: () => void
   }>
-  let tests = $state.raw<Partial<Record<TestKind, TestComponent>>>({})
+  /** A test screen; the full test runs the flick part, then the tracking part. */
+  type Part = 'flick' | 'tracking'
+  let tests = $state.raw<Partial<Record<Part, TestComponent>>>({})
+  let part = $state<Part>('flick')
+  /** Full test: the flick part's result while the tracking part runs. */
+  let flickPart = $state.raw<SearchResult | null>(null)
   let loadError = $state<string | null>(null)
 
   /**
    * The tests (with three.js) are separate chunks, fetched ahead of time from
    * the setup screen. Both share the three.js chunk, so the second is small.
    */
-  const testModules: Partial<Record<TestKind, Promise<void>>> = {}
-  function loadTest(which: TestKind): Promise<void> {
+  const testModules: Partial<Record<Part, Promise<void>>> = {}
+  function loadTest(which: Part): Promise<void> {
     testModules[which] ??= (which === 'flick' ? import('./tests/FlickTest.svelte') : import('./tests/TrackingTest.svelte'))
       .then((m) => {
         tests = { ...tests, [which]: m.default as TestComponent }
@@ -78,7 +101,7 @@
     void loadTest('flick')
     void loadTest('tracking')
   }
-  const ActiveTest = $derived(startConfig ? (tests[startConfig.kind] ?? null) : null)
+  const ActiveTest = $derived(startConfig ? (tests[part] ?? null) : null)
 
   // A/B feel test, also a separate chunk; fetched while the results are on screen.
   let AbTest = $state.raw<Component<{
@@ -137,55 +160,97 @@
     saveUnit(u)
   }
 
-  async function start(config: StartConfig) {
-    startConfig = config
+  /** Starts the test described by startConfig from its first part. */
+  async function run() {
+    if (!startConfig) return
     loadError = null
-    await loadTest(config.kind)
-    if (tests[config.kind]) {
+    part = startConfig.kind === 'tracking' ? 'tracking' : 'flick'
+    flickPart = null
+    if (startConfig.kind === 'full') void loadTest('tracking')
+    await loadTest(part)
+    if (tests[part]) {
       testRun++
       screen = 'test'
     }
   }
 
-  function done(r: SearchResult) {
+  function start(config: StartConfig) {
+    startConfig = config
+    void run()
+  }
+
+  async function done(r: SearchResult) {
     const config = startConfig
+    if (!config) return
+    if (config.kind === 'full' && part === 'flick') {
+      // Part 1 done: keep it and go straight on to tracking.
+      flickPart = r
+      // Switch only once the tracking screen is loaded, so it mounts exactly once.
+      await loadTest('tracking')
+      part = 'tracking'
+      testRun++
+      return
+    }
+
     abOutcome = null
-    result = {
-      range: r.range,
-      current: config?.current ?? null,
-      gameId: config?.gameId ?? null,
-      dpi: config?.dpi ?? null,
-      edge: r.edge,
-      kind: config?.kind ?? 'flick',
-      rounds: r.rounds,
+    if (config.kind === 'full' && flickPart) {
+      const blended = blendResults(flickPart, r, STYLE_WEIGHTS[config.style])
+      result = {
+        range: blended.range,
+        current: config.current,
+        gameId: config.gameId,
+        dpi: config.dpi,
+        edge: flickPart.edge,
+        kind: 'full',
+        rounds: flickPart.rounds,
+        blend: {
+          style: config.style,
+          weights: blended.weights,
+          flick: flickPart.range,
+          tracking: r.range,
+          trackingRounds: r.rounds,
+        },
+      }
+    } else {
+      result = {
+        range: r.range,
+        current: config.current,
+        gameId: config.gameId,
+        dpi: config.dpi,
+        edge: r.edge,
+        kind: config.kind,
+        rounds: r.rounds,
+        blend: null,
+      }
     }
     screen = 'results'
     // Reloading the page keeps the result (without round details).
+    const res = result
     const q = resultQuery({
-      lo: r.range.lo,
-      hi: r.range.hi,
-      ...(config?.current != null ? { current: config.current } : {}),
-      ...(config?.gameId ? { game: config.gameId } : {}),
-      ...(config ? { dpi: config.dpi } : {}),
-      ...(r.edge ? { edge: r.edge } : {}),
-      ...(config ? { test: config.kind } : {}),
+      lo: res.range.lo,
+      hi: res.range.hi,
+      ...(config.current != null ? { current: config.current } : {}),
+      ...(config.gameId ? { game: config.gameId } : {}),
+      dpi: config.dpi,
+      ...(res.edge ? { edge: res.edge } : {}),
+      test: config.kind,
+      ...(res.blend
+        ? { style: config.style, flick: res.blend.flick, tracking: res.blend.tracking }
+        : {}),
     })
     history.replaceState(null, '', `${import.meta.env.BASE_URL}${q}#/`)
     window.scrollTo(0, 0)
   }
 
   function retest() {
-    if (!startConfig) return
-    testRun++
-    screen = 'test'
+    void run()
   }
 
   /** Follow-up test when the result hit an edge: centred on that end of the last starting range. */
   function retestBeyond(edge: Side) {
     if (!startConfig) return
     startConfig = { ...startConfig, initial: rangeBeyond(startConfig.initial, edge) }
-    testRun++
-    screen = 'test'
+    void run()
   }
 
   function newTest() {
@@ -219,9 +284,14 @@
     screen = 'results'
   }
 
-  const testConfig = $derived<FlickTestConfig | null>(
-    startConfig ? { dpi: startConfig.dpi, view: startConfig.view, initial: startConfig.initial, unit } : null,
-  )
+  const testConfig = $derived.by<FlickTestConfig | null>(() => {
+    if (!startConfig) return null
+    const base = { dpi: startConfig.dpi, view: startConfig.view, initial: startConfig.initial, unit }
+    if (startConfig.kind !== 'full') return base
+    return part === 'flick'
+      ? { ...base, search: FULL_FLICK_SEARCH, part: 'Part 1 of 2 · Flicks' }
+      : { ...base, search: FULL_TRACKING_SEARCH, part: 'Part 2 of 2 · Tracking' }
+  })
 </script>
 
 {#if screen === 'test' && route === 'test' && ActiveTest && testConfig}
@@ -253,7 +323,7 @@
         <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
       {/if}
     {:else}
-      <Setup {games} {gamesError} bind:form bind:kind {unit} onUnitChange={setUnit} onStart={start} preload={preloadTests} />
+      <Setup {games} {gamesError} bind:form bind:kind bind:style {unit} onUnitChange={setUnit} onStart={start} preload={preloadTests} />
       {#if loadError}
         <p class="form-error" role="alert">Could not load the test: {loadError}. Check your connection and try again.</p>
       {/if}

@@ -16,10 +16,13 @@ No install, no account. Open it on a computer with a mouse; the test takes about
 
 ## What it does
 
-You pick your game, sens and DPI, and one of two tests:
+You pick your game, sens and DPI, and a test:
 
-- **Flick:** in a simple 3D room you flick from a white dot to yellow targets and click once per target.
-- **Tracking:** you keep the crosshair on a target that moves along a smooth, changing path.
+- **Full test** (default, about 4 minutes): a flick part, then a tracking part. Each finds its own range and the
+  result is their weighted average; you pick the weights by how your game plays (mostly flicks 80/20, both 60/40,
+  mostly tracking 35/65).
+- **Flick only:** in a simple 3D room you flick from a white dot to yellow targets and click once per target.
+- **Tracking only:** you keep the crosshair on a target that moves along a smooth, changing path.
 
 Each round tests two distances per 360°, keeps the part of the range that scored better, and narrows it down.
 At the end you get:
@@ -51,7 +54,10 @@ flicks are not a real match. Treat the result as a starting point.
 - Tracking splits the miss into **ahead of** and **behind** the moving target. Reaction time makes everyone
   trail a little and tracking scores change slowly with sens, so tracking rounds are decided by score alone
   and undecided rounds keep the range: tracking results are honestly wider than flick results.
-- Both procedures are checked against simulated players (flickers and trackers) before they are trusted.
+- The full test blends the two parts' results on a log scale rather than mixing their scores: a sens 25% off
+  costs flicks far more than tracking, so a mixed score would ignore the chosen weights.
+- All procedures are checked against simulated players (flickers, trackers, and players whose flick and tracking
+  preferences differ) before they are trusted.
 
 ## Links
 

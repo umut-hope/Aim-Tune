@@ -4,6 +4,7 @@
 import type { Range } from '../core/search'
 import { cmPer360, toCm, type DistanceUnit } from '../core/units'
 import type { ResolvedView } from '../core/view'
+import type { AimStyle } from '../core/combined'
 import { formatNumber, parsePositive } from './links'
 
 /** Select value for "I know my cm/360" instead of a game. */
@@ -64,11 +65,13 @@ export function isPlausibleCm360(cm: number): boolean {
   return cm >= 5 && cm <= 200
 }
 
-export type TestKind = 'flick' | 'tracking'
+export type TestKind = 'full' | 'flick' | 'tracking'
 
 /** Everything the test needs, decided on the setup screen. */
 export interface StartConfig {
   kind: TestKind
+  /** How the player's game mostly asks them to aim; weights the full test. */
+  style: AimStyle
   dpi: number
   view: ResolvedView
   initial: Range

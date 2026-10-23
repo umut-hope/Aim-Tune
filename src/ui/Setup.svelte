@@ -4,6 +4,7 @@
 -->
 <script lang="ts">
   import { onMount } from 'svelte'
+  import { STYLE_WEIGHTS, type AimStyle } from '../core/combined'
   import { DEFAULT_RANGE, initialRange } from '../core/search'
   import { fromCm, type DistanceUnit } from '../core/units'
   import { resolveView } from '../core/view'
@@ -20,6 +21,7 @@
     gamesError: string | null
     form: SetupForm
     kind: TestKind
+    style: AimStyle
     unit: DistanceUnit
     onUnitChange: (unit: DistanceUnit) => void
     onStart: (config: StartConfig) => void
@@ -27,10 +29,34 @@
     preload?: () => void
   }
 
-  let { games, gamesError, form = $bindable(), kind = $bindable(), unit, onUnitChange, onStart, preload }: Props = $props()
+  let {
+    games,
+    gamesError,
+    form = $bindable(),
+    kind = $bindable(),
+    style = $bindable(),
+    unit,
+    onUnitChange,
+    onStart,
+    preload,
+  }: Props = $props()
+
+  const KINDS: { id: TestKind; name: string; desc: string }[] = [
+    { id: 'full', name: 'Full test', desc: 'Flicks + tracking · ~4 min' },
+    { id: 'flick', name: 'Flick only', desc: 'Snap to targets · ~2.5 min' },
+    { id: 'tracking', name: 'Tracking only', desc: 'Follow a target · ~3 min' },
+  ]
+  const STYLES: { id: AimStyle; name: string; examples: string }[] = [
+    { id: 'flicks', name: 'Mostly flicks', examples: 'e.g. Valorant, CS2, Rainbow Six Siege' },
+    { id: 'both', name: 'Both', examples: 'e.g. Fortnite, Call of Duty, Deadlock' },
+    { id: 'tracking', name: 'Mostly tracking', examples: 'e.g. Apex Legends, Overwatch 2' },
+  ]
+  const pct = (x: number) => `${Math.round(x * 100)}%`
 
   const HELP = {
-    kind: 'Flick: snap to targets that appear, one click each. Tracking: keep the crosshair on a moving target. Many players prefer a slightly different sens for each; tracking results are usually broader.',
+    kind: 'Full test: a flick part, then a tracking part, combined into one range. Flick only: snap to targets that appear, one click each. Tracking only: keep the crosshair on a moving target. Tracking results are usually broader.',
+    style:
+      'Each part finds its own best range; the result is their weighted average (on a log scale, since sens feels proportional). Flicks keep at least 35% because tracking alone measures sens less precisely. Your game is a guess at the mix: pick what matches how you actually play.',
     game: "Your main game. Sets the field of view so targets appear where they would in that game, and converts the result to its sens.",
     sens: 'The mouse sensitivity in your game settings, as the game shows it.',
     dpi: 'Counts per inch of your mouse, set in its own software (often 400, 800 or 1600). Not the in-game sensitivity.',
@@ -75,7 +101,7 @@
         aspect: window.screen.width / window.screen.height,
         playerFov: fovEditable ? parsePositive(form.fov) : null,
       })
-      onStart({ kind, dpi, view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
+      onStart({ kind, style, dpi, view, initial: testRange, gameId: game?.id ?? null, current: currentOk ? current : null })
     } catch (e) {
       startError = e instanceof Error ? e.message : String(e)
     }
@@ -87,8 +113,8 @@
 <section class="hero">
   <h1>Find the sens your hand actually likes.</h1>
   <p class="hero-sub">
-    A short flick or tracking test in your browser, about 3 minutes. It measures how you aim and suggests a range, not
-    a single magic number. You need a mouse.
+    A short flick and tracking test in your browser, about 4 minutes. It measures how you aim and suggests a range,
+    not a single magic number. You need a mouse.
   </p>
 </section>
 
@@ -100,16 +126,40 @@
         <HelpTip label="the test types" text={HELP.kind} />
       </div>
       <div class="kinds" role="group" aria-labelledby="kind-label">
-        <button type="button" aria-pressed={kind === 'flick'} onclick={() => (kind = 'flick')}>
-          <span class="kind-name">Flick</span>
-          <span class="kind-desc">Snap to targets</span>
-        </button>
-        <button type="button" aria-pressed={kind === 'tracking'} onclick={() => (kind = 'tracking')}>
-          <span class="kind-name">Tracking</span>
-          <span class="kind-desc">Follow a moving target</span>
-        </button>
+        {#each KINDS as k (k.id)}
+          <button type="button" aria-pressed={kind === k.id} onclick={() => (kind = k.id)}>
+            <span class="kind-name">{k.name}{k.id === 'full' ? ' (recommended)' : ''}</span>
+            <span class="kind-desc">{k.desc}</span>
+          </button>
+        {/each}
       </div>
     </div>
+
+    {#if kind === 'full'}
+      <div class="field">
+        <div class="field-head">
+          <span class="kind-label" id="style-label">What does your game ask for more?</span>
+          <HelpTip label="how the parts are weighted" text={HELP.style} />
+        </div>
+        <div class="styles" role="radiogroup" aria-labelledby="style-label">
+          {#each STYLES as st (st.id)}
+            <button type="button" role="radio" aria-checked={style === st.id} onclick={() => (style = st.id)}>
+              <span class="style-top">
+                <span class="kind-name">{st.name}</span>
+                <span class="num weights">
+                  {pct(STYLE_WEIGHTS[st.id].flick)} flick · {pct(STYLE_WEIGHTS[st.id].tracking)} tracking
+                </span>
+              </span>
+              <span class="kind-desc">{st.examples}</span>
+            </button>
+          {/each}
+        </div>
+        <p class="muted small">
+          Usually: tactical shooters reward flicks, fast hero and battle royale games reward tracking. It is your call:
+          go by how you actually play.
+        </p>
+      </div>
+    {/if}
 
     <div class="field">
       <div class="field-head">
@@ -295,13 +345,31 @@
   }
   .kinds {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 1fr;
     gap: 0.5rem;
   }
-  .kinds button {
+  .styles {
+    display: grid;
+    gap: 0.4rem;
+  }
+  .style-top {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 0.25rem 0.75rem;
+  }
+  .weights {
+    font-size: 0.8rem;
+    color: var(--color-text-muted);
+  }
+  .styles button[aria-checked='true'] .weights {
+    color: var(--color-accent);
+  }
+  .kinds button,
+  .styles button {
     display: grid;
     gap: 0.1rem;
-    min-height: 56px;
+    min-height: 48px;
     padding: 0.5rem 0.75rem;
     text-align: left;
     color: var(--color-text);
@@ -310,17 +378,20 @@
     border-radius: var(--radius-control);
     cursor: pointer;
   }
-  .kinds button:hover {
+  .kinds button:hover,
+  .styles button:hover {
     border-color: var(--color-text-muted);
   }
-  .kinds button[aria-pressed='true'] {
+  .kinds button[aria-pressed='true'],
+  .styles button[aria-checked='true'] {
     border-color: var(--color-accent);
     box-shadow: inset 0 0 0 1px var(--color-accent);
   }
   .kind-name {
     font-weight: var(--weight-bold);
   }
-  .kinds button[aria-pressed='true'] .kind-name {
+  .kinds button[aria-pressed='true'] .kind-name,
+  .styles button[aria-checked='true'] .kind-name {
     color: var(--color-accent);
   }
   .kind-desc {

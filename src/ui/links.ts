@@ -59,7 +59,11 @@ export interface ResultParams {
   /** Set when the best distance may lie beyond the tested range. */
   edge?: 'low' | 'high'
   /** Which test produced it. Flick when absent. */
-  test?: 'flick' | 'tracking'
+  test?: 'flick' | 'tracking' | 'full'
+  /** Full test only: aim style and the two parts' ranges. */
+  style?: 'flicks' | 'both' | 'tracking'
+  flick?: { lo: number; hi: number }
+  tracking?: { lo: number; hi: number }
 }
 
 /** Query string for a shareable result link. */
@@ -71,7 +75,18 @@ export function resultQuery(r: ResultParams): string {
   if (r.game !== undefined) params.set('game', r.game)
   if (r.dpi !== undefined) params.set('dpi', formatNumber(r.dpi, 0))
   if (r.edge !== undefined) params.set('edge', r.edge)
-  if (r.test === 'tracking') params.set('test', 'tracking')
+  if (r.test === 'tracking' || r.test === 'full') params.set('test', r.test)
+  if (r.test === 'full') {
+    if (r.style) params.set('style', r.style)
+    if (r.flick) {
+      params.set('fl', formatNumber(r.flick.lo, 1))
+      params.set('fh', formatNumber(r.flick.hi, 1))
+    }
+    if (r.tracking) {
+      params.set('tl', formatNumber(r.tracking.lo, 1))
+      params.set('th', formatNumber(r.tracking.hi, 1))
+    }
+  }
   return `?${params.toString()}`
 }
 
@@ -91,7 +106,22 @@ export function parseResultParams(search: string): ResultParams | null {
   if (game) out.game = game
   if (dpi !== null) out.dpi = dpi
   if (edge === 'low' || edge === 'high') out.edge = edge
-  if (params.get('test') === 'tracking') out.test = 'tracking'
+  const test = params.get('test')
+  if (test === 'tracking') out.test = 'tracking'
+  if (test === 'full') {
+    out.test = 'full'
+    const style = params.get('style')
+    if (style === 'flicks' || style === 'both' || style === 'tracking') out.style = style
+    const range = (a: string, b: string) => {
+      const lo = parsePositive(params.get(a))
+      const hi = parsePositive(params.get(b))
+      return lo !== null && hi !== null && lo < hi && hi <= 500 ? { lo, hi } : undefined
+    }
+    const flick = range('fl', 'fh')
+    const tracking = range('tl', 'th')
+    if (flick) out.flick = flick
+    if (tracking) out.tracking = tracking
+  }
   return out
 }
 

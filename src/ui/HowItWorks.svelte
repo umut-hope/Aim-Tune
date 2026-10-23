@@ -62,6 +62,21 @@
   </section>
 
   <section>
+    <h2>The full test</h2>
+    <p>
+      You set one sens in game, so the default test does both: a flick part, then a tracking part, about four minutes
+      in all. Each part finds its own range, and the result is their weighted average. You choose the weights by how your
+      game plays: mostly flicks (80% flick, 20% tracking), both (60/40) or mostly tracking (35/65).
+    </p>
+    <p>
+      Why not one combined score? A sens that is a quarter off ruins flicks but only costs tracking a few percent, so
+      flicks would decide every time, whatever you picked. Averaging the two results lets your choice count. Flicks keep
+      at least 35% because tracking alone measures sens less precisely. The results page shows both parts, so you can see
+      if tracking pointed somewhere else.
+    </p>
+  </section>
+
+  <section>
     <h2>Compare by feel</h2>
     <p>
       Numbers are not everything. From the results you can start an A/B test: aim freely at still and moving targets

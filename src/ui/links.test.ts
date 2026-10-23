@@ -61,6 +61,27 @@ describe('result links', () => {
     expect(parseResultParams('?lo=30&hi=40&test=other')?.test).toBeUndefined()
   })
 
+  it('round-trips a full test with its parts', () => {
+    const q = resultQuery({
+      lo: 36,
+      hi: 40,
+      test: 'full',
+      style: 'both',
+      flick: { lo: 40.4, hi: 43.3 },
+      tracking: { lo: 28, hi: 35 },
+    })
+    expect(q).toBe('?lo=36&hi=40&test=full&style=both&fl=40.4&fh=43.3&tl=28&th=35')
+    expect(parseResultParams(q)).toEqual({
+      lo: 36,
+      hi: 40,
+      test: 'full',
+      style: 'both',
+      flick: { lo: 40.4, hi: 43.3 },
+      tracking: { lo: 28, hi: 35 },
+    })
+    expect(parseResultParams('?lo=36&hi=40&test=full&style=odd&fl=5&fh=4')).toEqual({ lo: 36, hi: 40, test: 'full' })
+  })
+
   it('needs a valid range', () => {
     expect(parseResultParams('?lo=40&hi=38')).toBeNull()
     expect(parseResultParams('?lo=40')).toBeNull()

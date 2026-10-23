@@ -4,7 +4,18 @@
   test, and links onward (yawmatch, profile, retest, share).
 -->
 <script lang="ts" module>
+  import type { AimStyle, SkillWeights } from '../core/combined'
   import type { Range, RoundResult, Side } from '../core/search'
+
+  /** Full test: how the flick and tracking parts were combined. */
+  export interface BlendInfo {
+    style: AimStyle | null
+    weights: SkillWeights | null
+    flick: Range
+    tracking: Range
+    /** Tracking rounds; null when opened from a shared link. */
+    trackingRounds: readonly RoundResult[] | null
+  }
 
   export interface ResultData {
     range: Range
@@ -13,7 +24,9 @@
     dpi: number | null
     edge: Side | null
     /** Which test produced the result. */
-    kind: 'flick' | 'tracking'
+    kind: 'flick' | 'tracking' | 'full'
+    /** Full test only. */
+    blend: BlendInfo | null
     /** Round details; null when opened from a shared link. */
     rounds: readonly RoundResult[] | null
   }
@@ -65,6 +78,27 @@
   )
   const sensText = (v: number) => formatNumber(v, v < 1 ? 3 : 2)
 
+  const STYLE_NAMES: Record<AimStyle, string> = { flicks: 'Mostly flicks', both: 'Both', tracking: 'Mostly tracking' }
+  const KIND_NAMES = { flick: 'flick', tracking: 'tracking', full: 'full test' } as const
+  const centerOf = (r: Range) => Math.sqrt(r.lo * r.hi)
+  /** Where tracking alone pointed compared with flicks (±7% counts as the same). */
+  const lean = $derived.by(() => {
+    if (!result.blend) return null
+    const ratio = centerOf(result.blend.tracking) / centerOf(result.blend.flick)
+    return ratio < 0.93 ? 'shorter' : ratio > 1.07 ? 'longer' : 'same'
+  })
+  const markers = $derived([
+    ...(result.current !== null
+      ? [{ cm: result.current, label: `you · ${dist(result.current)}`, tone: 'current' as const }]
+      : []),
+    ...(result.blend
+      ? [
+          { cm: centerOf(result.blend.flick), label: `flicks · ${dist(centerOf(result.blend.flick))}`, tone: 'muted' as const },
+          { cm: centerOf(result.blend.tracking), label: `tracking · ${dist(centerOf(result.blend.tracking))}`, tone: 'muted' as const },
+        ]
+      : []),
+  ])
+
   /** Where the player's current distance sits relative to the range. */
   const relation = $derived.by(() => {
     const c = result.current
@@ -82,6 +116,13 @@
       ...(result.dpi !== null ? { dpi: result.dpi } : {}),
       ...(result.edge !== null ? { edge: result.edge } : {}),
       test: result.kind,
+      ...(result.blend
+        ? {
+            ...(result.blend.style ? { style: result.blend.style } : {}),
+            flick: result.blend.flick,
+            tracking: result.blend.tracking,
+          }
+        : {}),
     })
     return `${location.origin}${import.meta.env.BASE_URL}${q}`
   })
@@ -101,7 +142,7 @@
 
 <section class="result-hero">
   <p class="eyebrow">
-    {result.rounds ? 'Your' : 'Shared'} {result.kind === 'tracking' ? 'tracking' : 'flick'} result
+    {result.rounds ? 'Your' : 'Shared'} {KIND_NAMES[result.kind]} result
   </p>
   <h1>
     Your sweet spot:
@@ -127,8 +168,53 @@
       {unit}
       summary={`Recommended ${dist(result.range.lo)} to ${dist(result.range.hi)} ${unitWord} per 360°${result.current !== null ? `, current ${dist(result.current)}` : ''}`}
       band={result.range}
-      markers={result.current !== null ? [{ cm: result.current, label: `you · ${dist(result.current)}`, tone: 'current' }] : []}
+      {markers}
     />
+
+    {#if result.blend}
+      {@const b = result.blend}
+      <div class="card blend">
+        <h2>How this was combined</h2>
+        <dl class="parts">
+          <div>
+            <dt>Flick part</dt>
+            <dd class="num">{dist(b.flick.lo)}–{dist(b.flick.hi)} {unitWord}</dd>
+          </div>
+          <div>
+            <dt>Tracking part</dt>
+            <dd class="num">{dist(b.tracking.lo)}–{dist(b.tracking.hi)} {unitWord}</dd>
+          </div>
+          <div>
+            <dt>Weighting</dt>
+            <dd>
+              {#if b.weights}
+                {b.style ? STYLE_NAMES[b.style] : ''}:
+                <span class="num">{Math.round(b.weights.flick * 100)}% flick · {Math.round(b.weights.tracking * 100)}% tracking</span>
+              {:else}
+                by aim style
+              {/if}
+            </dd>
+          </div>
+        </dl>
+        <p class="muted small">
+          Each part found its own range; the result is their weighted average on a log scale. The tracking range is wider,
+          so more tracking weight also widens the result.
+        </p>
+        {#if lean === 'shorter'}
+          <p>
+            On its own, tracking pointed to a <strong>shorter</strong> distance (a higher sens). If tracking matters more
+            in your game than you picked, lean towards the low end.
+          </p>
+        {:else if lean === 'longer'}
+          <p>
+            On its own, tracking pointed to a <strong>longer</strong> distance (a lower sens). If tracking matters more in
+            your game than you picked, lean towards the high end.
+          </p>
+        {:else}
+          <p>Flicking and tracking pointed to about the same distance.</p>
+        {/if}
+      </div>
+    {/if}
 
     {#if result.edge}
       <div class="tip" role="note">
@@ -174,7 +260,12 @@
 
     {#if result.rounds && result.rounds.length > 0}
       <div class="card">
-        <BiasChart rounds={result.rounds} {unit} kind={result.kind} />
+        <BiasChart rounds={result.rounds} {unit} kind={result.kind === 'tracking' ? 'tracking' : 'flick'} />
+      </div>
+    {/if}
+    {#if result.blend?.trackingRounds && result.blend.trackingRounds.length > 0}
+      <div class="card">
+        <BiasChart rounds={result.blend.trackingRounds} {unit} kind="tracking" />
       </div>
     {/if}
   </div>
@@ -184,8 +275,8 @@
       <p class="tip-title">A short browser test, not the final word</p>
       <p>
         There is no single correct sensitivity. This range is where you were most consistent in a few minutes of
-        {result.kind === 'tracking' ? 'tracking' : 'flicks'}, in a browser, at this frame rate. Try the middle of it in
-        game for a few sessions before deciding.
+        {result.kind === 'tracking' ? 'tracking' : result.kind === 'full' ? 'flicks and tracking' : 'flicks'}, in a
+        browser, at this frame rate. Try the middle of it in game for a few sessions before deciding.
         {#if result.kind === 'tracking'}
           Tracking preference is usually broader than flicking, so this range is wider; the flick test narrows it
           further.
@@ -261,6 +352,32 @@
   .side {
     display: grid;
     gap: 1rem;
+  }
+  .blend {
+    display: grid;
+    gap: 0.75rem;
+  }
+  .blend h2 {
+    font-size: 1.1rem;
+  }
+  .parts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 0.5rem;
+    margin: 0;
+  }
+  .parts div {
+    padding: 0.5rem 0.6rem;
+    background: var(--color-bg);
+    border-radius: var(--radius-control);
+  }
+  .parts dt {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+  .parts dd {
+    margin: 0;
+    font-weight: var(--weight-medium);
   }
   .sens-card {
     display: grid;
