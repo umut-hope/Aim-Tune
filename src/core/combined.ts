@@ -8,6 +8,10 @@
  * Each part therefore finds its own best range, and the two are averaged on
  * a log scale (sensitivity feels proportional). The tracking range is wider,
  * so more tracking weight both shifts the result and honestly widens it.
+ *
+ * Tracking often cannot tell two distances apart (reaction lag dominates).
+ * Its say is therefore scaled by the share of its rounds that were actually
+ * decided: a tracking part that decided nothing does not move the result.
  */
 import type { Range, SearchOptions, SearchResult } from './search'
 import { TRACKING_SEARCH } from './tracking'
@@ -34,23 +38,42 @@ export const FULL_FLICK_SEARCH: Readonly<SearchOptions> = { rounds: 5, shotsPerB
 export const FULL_TRACKING_SEARCH: Readonly<SearchOptions> = {
   ...TRACKING_SEARCH,
   rounds: 3,
-  shotsPerBlock: 4,
+  shotsPerBlock: 3,
   warmupShots: 1,
 }
 
 /** Weighted geometric mean of two distances. */
 function blend(a: number, b: number, w: SkillWeights): number {
+  if (w.tracking === 0) return a
+  if (w.flick === 0) return b
   return Math.exp(w.flick * Math.log(a) + w.tracking * Math.log(b))
 }
 
 export interface BlendedResult {
   range: Range
   center: number
+  /** Weights the player chose. */
   weights: SkillWeights
+  /** Weights actually applied, after scaling tracking by how much it decided. */
+  applied: SkillWeights
+  /** Share of tracking rounds that picked a winner, 0..1. */
+  trackingDecided: number
   flick: SearchResult
   tracking: SearchResult
-  /** Where tracking alone pointed compared with flicks, if clearly different. */
-  trackingLean: 'shorter' | 'longer' | 'same'
+  /** Where tracking alone pointed compared with flicks; 'unknown' if it decided nothing. */
+  trackingLean: 'shorter' | 'longer' | 'same' | 'unknown'
+}
+
+/** Share of rounds with a winner; 1 when no rounds are known (e.g. a shared link). */
+export function decidedShare(result: SearchResult): number {
+  if (result.rounds.length === 0) return 1
+  return result.rounds.filter((r) => r.winner !== null).length / result.rounds.length
+}
+
+/** Tracking weight scaled by how much the tracking part could tell. */
+export function appliedWeights(weights: SkillWeights, trackingDecided: number): SkillWeights {
+  const tracking = weights.tracking * Math.min(1, Math.max(0, trackingDecided))
+  return { flick: 1 - tracking, tracking }
 }
 
 /** Results this far apart (±7%) count as pointing somewhere else. */
@@ -60,16 +83,27 @@ export function blendResults(flick: SearchResult, tracking: SearchResult, weight
   if (!(weights.flick >= 0 && weights.tracking >= 0 && Math.abs(weights.flick + weights.tracking - 1) < 1e-9)) {
     throw new RangeError('weights must be non-negative and add up to 1')
   }
+  const trackingDecided = decidedShare(tracking)
+  const applied = appliedWeights(weights, trackingDecided)
   const ratio = tracking.center / flick.center
   return {
     range: {
-      lo: blend(flick.range.lo, tracking.range.lo, weights),
-      hi: blend(flick.range.hi, tracking.range.hi, weights),
+      lo: blend(flick.range.lo, tracking.range.lo, applied),
+      hi: blend(flick.range.hi, tracking.range.hi, applied),
     },
-    center: blend(flick.center, tracking.center, weights),
+    center: blend(flick.center, tracking.center, applied),
     weights,
+    applied,
+    trackingDecided,
     flick,
     tracking,
-    trackingLean: ratio < 1 - LEAN_THRESHOLD ? 'shorter' : ratio > 1 + LEAN_THRESHOLD ? 'longer' : 'same',
+    trackingLean:
+      trackingDecided === 0
+        ? 'unknown'
+        : ratio < 1 - LEAN_THRESHOLD
+          ? 'shorter'
+          : ratio > 1 + LEAN_THRESHOLD
+            ? 'longer'
+            : 'same',
   }
 }

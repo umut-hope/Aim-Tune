@@ -1,14 +1,15 @@
 import { describe, expect, it } from 'vitest'
-import { STYLE_WEIGHTS, blendResults } from './combined'
-import type { SearchResult } from './search'
+import { STYLE_WEIGHTS, appliedWeights, blendResults, decidedShare } from './combined'
+import type { RoundResult, SearchResult } from './search'
 
-const result = (lo: number, hi: number): SearchResult => ({
+/** A result with `decided` of `total` rounds that picked a winner (none known when total is 0). */
+const result = (lo: number, hi: number, decided = 0, total = 0): SearchResult => ({
   range: { lo, hi },
   center: Math.sqrt(lo * hi),
   finalBracket: { lo, hi },
   halfWidth: 0.04,
   edge: null,
-  rounds: [],
+  rounds: Array.from({ length: total }, (_, i) => ({ winner: i < decided ? 'low' : null }) as unknown as RoundResult),
 })
 
 describe('STYLE_WEIGHTS', () => {
@@ -48,6 +49,29 @@ describe('blendResults', () => {
     expect(blendResults(flick, tracking, STYLE_WEIGHTS.both).trackingLean).toBe('shorter')
     expect(blendResults(flick, result(41, 43), STYLE_WEIGHTS.both).trackingLean).toBe('same')
     expect(blendResults(flick, result(46, 52), STYLE_WEIGHTS.both).trackingLean).toBe('longer')
+  })
+
+  it('ignores a tracking part that decided nothing', () => {
+    const b = blendResults(flick, result(28, 56, 0, 3), STYLE_WEIGHTS.tracking)
+    expect(b.center).toBeCloseTo(flick.center, 9)
+    expect(b.range).toEqual(flick.range)
+    expect(b.applied).toEqual({ flick: 1, tracking: 0 })
+    expect(b.trackingLean).toBe('unknown')
+  })
+
+  it('scales tracking by the share of rounds it decided', () => {
+    const b = blendResults(flick, result(28, 36, 1, 3), STYLE_WEIGHTS.both)
+    expect(b.trackingDecided).toBeCloseTo(1 / 3, 12)
+    expect(b.applied.tracking).toBeCloseTo(0.4 / 3, 12)
+    expect(b.applied.flick + b.applied.tracking).toBeCloseTo(1, 12)
+    const full = blendResults(flick, result(28, 36, 3, 3), STYLE_WEIGHTS.both)
+    expect(full.applied).toEqual(STYLE_WEIGHTS.both)
+    expect(b.center).toBeGreaterThan(full.center)
+  })
+
+  it('helpers clamp and default sensibly', () => {
+    expect(decidedShare(result(1, 2))).toBe(1)
+    expect(appliedWeights({ flick: 0.6, tracking: 0.4 }, 2)).toEqual({ flick: 0.6, tracking: 0.4 })
   })
 
   it('rejects weights that do not add up', () => {
