@@ -1,0 +1,37 @@
+name: Result feedback
+description: Tell us whether a test result matched how your sens feels in game.
+title: "[result] "
+labels: ["result feedback"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks! Feedback like this is the only way the scoring gets tuned on real players.
+        Nothing is collected automatically; only what you submit here is shared.
+
+  - type: textarea
+    id: result
+    attributes:
+      label: Your result
+      description: Filled in from the results page. Edit anything you do not want to share.
+      render: text
+    validations:
+      required: true
+
+  - type: dropdown
+    id: verdict
+    attributes:
+      label: How did the result compare with your sens in game?
+      options:
+        - About right
+        - Too fast (I prefer a lower sens)
+        - Too slow (I prefer a higher sens)
+        - Not sure yet
+    validations:
+      required: true
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Anything else?
+      description: e.g. how many runs you did, what felt off during the test, your browser and OS mouse settings.

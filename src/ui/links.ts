@@ -140,3 +140,50 @@ export function yawmatchLink(from?: { game: string; sens: number; dpi?: number }
   if (from.dpi !== undefined) params.set('dpi', formatNumber(from.dpi, 0))
   return `${YAWMATCH_URL}?${params.toString()}`
 }
+
+export const REPO_URL = 'https://github.com/umut-hope/Aim-Tune'
+
+export interface FeedbackInfo {
+  test: string
+  range: { lo: number; hi: number }
+  current?: number
+  game?: string
+  sens?: { lo: number; hi: number }
+  dpi?: number
+  browser?: string
+  /** Shareable result link, so the numbers can be reopened. */
+  link?: string
+}
+
+/**
+ * Link to a GitHub issue form prefilled with the result. Opening it shares
+ * nothing by itself; the player reviews and submits the form on GitHub.
+ */
+export function feedbackUrl(info: FeedbackInfo): string {
+  const lines = [
+    `Test: ${info.test}`,
+    `Recommended: ${formatNumber(info.range.lo, 1)}–${formatNumber(info.range.hi, 1)} cm/360`,
+    ...(info.current !== undefined ? [`Current: ${formatNumber(info.current, 1)} cm/360`] : []),
+    ...(info.game ? [`Game: ${info.game}`] : []),
+    ...(info.sens ? [`In-game sens: ${formatNumber(info.sens.lo, 3)}–${formatNumber(info.sens.hi, 3)}`] : []),
+    ...(info.dpi !== undefined ? [`DPI: ${formatNumber(info.dpi, 0)}`] : []),
+    ...(info.browser ? [`Browser: ${info.browser}`] : []),
+    ...(info.link ? [`Link: ${info.link}`] : []),
+  ]
+  const params = new URLSearchParams({
+    template: 'result-feedback.yml',
+    title: `[result] ${info.test}: ${formatNumber(info.range.lo, 1)}–${formatNumber(info.range.hi, 1)} cm/360`,
+    result: lines.join('\n'),
+  })
+  return `${REPO_URL}/issues/new?${params.toString()}`
+}
+
+/** Browser family for feedback, from the user agent. */
+export function browserName(userAgent: string): string {
+  if (/\bEdg\//.test(userAgent)) return 'Edge'
+  if (/\bOPR\//.test(userAgent)) return 'Opera'
+  if (/\bFirefox\//.test(userAgent)) return 'Firefox'
+  if (/\bChrome\//.test(userAgent)) return 'Chrome'
+  if (/\bSafari\//.test(userAgent)) return 'Safari'
+  return 'Other'
+}

@@ -45,7 +45,7 @@
   import HistoryCard from './HistoryCard.svelte'
   import { combineRecent, type HistoryEntry } from './history'
   import CopyButton from './CopyButton.svelte'
-  import { formatNumber, resultQuery, yawmatchLink } from './links'
+  import { browserName, feedbackUrl, formatNumber, resultQuery, yawmatchLink } from './links'
   import { getStorage } from './prefs'
   import { saveProfile } from './profile'
   import Ruler from './Ruler.svelte'
@@ -141,6 +141,19 @@
     })
     return `${location.origin}${import.meta.env.BASE_URL}${q}`
   })
+
+  const reportUrl = $derived(
+    feedbackUrl({
+      test: KIND_NAMES[result.kind],
+      range: result.range,
+      ...(result.current !== null ? { current: result.current } : {}),
+      ...(game ? { game: game.name } : {}),
+      ...(sens ? { sens: { lo: sens.low, hi: sens.high } } : {}),
+      ...(result.dpi !== null ? { dpi: result.dpi } : {}),
+      browser: browserName(navigator.userAgent),
+      link: shareUrl,
+    }),
+  )
 
   const convertUrl = $derived(
     game && sens && result.dpi !== null
@@ -330,6 +343,11 @@
       <button type="button" class="btn" onclick={onNewTest}>{onRetest ? 'Change settings' : 'Take the test yourself'}</button>
       <CopyButton value={shareUrl} label="Copy result link" />
     </div>
+    <p class="feedback small">
+      Tried it in game?
+      <a href={reportUrl} target="_blank" rel="noopener">Tell us if it was right</a>
+      <span class="muted">(opens a prefilled form on GitHub; nothing is sent until you submit it)</span>
+    </p>
     {#if saved === 'saved'}
       <p class="muted small" role="status">
         Saved as {game?.name} sens <span class="num">{sens ? sensText(sens.mid) : ''}</span>. yawmatch and the next test here will start from it.
@@ -436,6 +454,9 @@
   }
   .edge-retest {
     margin-top: 0.75rem;
+  }
+  .feedback {
+    color: var(--color-text-muted);
   }
   .actions {
     display: grid;
