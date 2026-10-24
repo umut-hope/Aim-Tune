@@ -84,7 +84,9 @@ flicks are not a real match. Treat the result as a starting point.
 
 ## Privacy
 
-Everything runs in your browser. There is no backend, no account and no analytics. Your browser's local storage
+Everything runs in your browser. There is no backend and no account. Anonymous page views are counted with
+[GoatCounter](https://www.goatcounter.com/), without cookies or personal data; only the page path is sent, never your
+results. Your browser's local storage
 keeps your unit and language choice, your last ten results (to combine runs), a mouse calibration if you made one, and, if you
 press *Save to profile*, your game, sens and DPI (`shared:profile`, shared with yawmatch). Nothing of it leaves
 your browser; the feedback form on GitHub only shares what you submit there.

@@ -389,7 +389,7 @@ export const en = {
     },
     privacy: {
       title: 'Privacy',
-      text: 'Everything runs in your browser and nothing is uploaded. Your browser\'s local storage keeps your unit and language choice, your last ten results (so runs can be combined), a mouse calibration if you made one, and the profile if you save it. A result link carries the numbers in the address itself, and the feedback form on GitHub only shares what you submit there.',
+      text: 'Everything runs in your browser and your results are never uploaded. Page views are counted anonymously with GoatCounter, without cookies or personal data. Your browser\'s local storage keeps your unit and language choice, your last ten results (so runs can be combined), a mouse calibration if you made one, and the profile if you save it. A result link carries the numbers in the address itself, and the feedback form on GitHub only shares what you submit there.',
     },
     cta: 'Take the test',
   },

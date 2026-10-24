@@ -16,5 +16,11 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
+    <!-- Anonymous page views without cookies. Only the path is sent, never the
+         result numbers in the address. -->
+    <script>
+      window.goatcounter = { path: function () { return location.pathname } }
+    </script>
+    <script data-goatcounter="https://umut-hope.goatcounter.com/count" async src="https://gc.zgo.at/count.js"></script>
   </body>
 </html>

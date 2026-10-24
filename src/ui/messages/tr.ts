@@ -387,7 +387,7 @@ export const tr: Messages = {
     },
     privacy: {
       title: 'Gizlilik',
-      text: 'Her şey tarayıcında çalışır ve hiçbir şey yüklenmez. Tarayıcının yerel depolaması birim ve dil seçimini, son on sonucunu (testler birleştirilebilsin diye), yaptıysan fare kalibrasyonunu ve kaydedersen profilini tutar. Sonuç linki sayıları adresin kendisinde taşır; GitHub’daki geri bildirim formu da sadece orada gönderdiklerini paylaşır.',
+      text: 'Her şey tarayıcında çalışır ve sonuçların hiçbir yere yüklenmez. Sayfa ziyaretleri GoatCounter ile çerezsiz ve kişisel veri olmadan anonim olarak sayılır. Tarayıcının yerel depolaması birim ve dil seçimini, son on sonucunu (testler birleştirilebilsin diye), yaptıysan fare kalibrasyonunu ve kaydedersen profilini tutar. Sonuç linki sayıları adresin kendisinde taşır; GitHub’daki geri bildirim formu da sadece orada gönderdiklerini paylaşır.',
     },
     cta: 'Teste başla',
   },
